@@ -1,0 +1,28 @@
+import { useEffect } from 'react';
+import useApi from '@/hooks/useApi';
+import apiRoutes from '@/services/apiRoutes';
+
+const UserList = () => {
+  const { callApi, loading, error } = useApi();
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        await callApi(apiRoutes.users, 'GET', null, null, 'Users loaded!');
+      } catch (err) {
+        // Error toast already handled in hook
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  return (
+    <div>
+      {loading && <p>Loading users...</p>}
+      {error && <p style={{ color: 'red' }}>Error occurred</p>}
+    </div>
+  );
+};
+
+export default UserList;
