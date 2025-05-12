@@ -1,0 +1,113 @@
+2. Use Runtime Environment Variable Injection (Trick)
+Since React (Next.js or CRA) bakes environment variables at build time, but you want runtime variables, we’ll use a trick by injecting environment variables into a JS file at container startup.
+
+🔹3. Create env.template.js
+In root:
+
+
+Edit
+// public/env.js (or static/env.js)
+window._env_ = {
+  NEXT_PUBLIC_API_BASE_URL: "$NEXT_PUBLIC_API_BASE_URL"
+};
+🔹4. Create Runtime Injector Script
+In docker-entrypoint.sh:
+
+bash
+
+#!/bin/sh
+
+# Replace placeholders in env.js with actual environment variable values
+envsubst < /usr/share/nginx/html/env.js > /usr/share/nginx/html/env-config.js
+
+# Start Nginx
+nginx -g "daemon off;"
+🔹5. Update Dockerfile
+Dockerfile
+
+# Dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN yarn install && yarn build
+
+FROM nginx:alpine
+COPY --from=builder /app/out /usr/share/nginx/html
+COPY public/env.template.js /usr/share/nginx/html/env.js
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
+🔹6. Update React Code to Use window._env_
+Instead of process.env, use:
+
+js
+
+const apiUrl = window._env_?.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+🔹7. Azure Container App / Web App Settings
+Go to Azure Portal:
+
+App Service / Container App
+
+Navigate to Configuration → Application settings
+
+Add:
+
+NEXT_PUBLIC_API_BASE_URL → https://dev.api.yoursite.com (for dev)
+
+NEXT_PUBLIC_API_BASE_URL → https://prod.api.yoursite.com (for prod)
+
+These will be read at container runtime.
+
+🔹8. Azure DevOps Pipeline (azure-pipelines.yml)
+yaml
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+    ENV: 'production'
+    API_URL: 'https://prod.api.yoursite.com'
+  ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
+    ENV: 'development'
+    API_URL: 'https://dev.api.yoursite.com'
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAndPush
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: Docker@2
+            displayName: 'Build and Push Docker Image'
+            inputs:
+              containerRegistry: 'yourContainerRegistryConnection'
+              repository: 'your-react-frontend'
+              command: 'buildAndPush'
+              Dockerfile: 'Dockerfile'
+              tags: |
+                $(Build.SourceBranchName)
+
+  - stage: Deploy
+    dependsOn: Build
+    jobs:
+      - deployment: DeployFrontend
+        environment: '$(ENV)'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: '<your-azure-subscription>'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az containerapp update \
+                        --name my-react-ui \
+                        --resource-group my-rg \
+                        --set-env-vars NEXT_PUBLIC_API_BASE_URL=$(API_URL)
