@@ -1,0 +1,44 @@
+export const authToServer = async (data) => {
+  try {
+    authToken = null;
+
+    const cfg = {
+      method: "post",
+      url: `${appConfig.backendurl}/auth`,
+      data,
+      timeout: 2000,
+      headers: { "Content-type": "application/json" },
+    };
+
+    console.log("🔐 [authToServer] Sending /auth request with payload:", data);
+    const response = await axios(cfg);
+    const responseData = response?.data ?? {};
+
+    console.log("📥 [authToServer] Received response:", response);
+    console.log("📥 [authToServer] Parsed response data:", responseData);
+
+    if (
+      typeof responseData === "string" &&
+      (responseData?.indexOf("https://accounts.google.com") !== -1 ||
+        responseData?.indexOf("https://login.microsoftonline.com") !== -1 ||
+        responseData?.indexOf("/login?token=") !== -1)
+    ) {
+      console.log("🔄 [authToServer] Redirecting to external login:", responseData);
+      window.location.href = responseData;
+      return;
+    }
+
+    if (responseData?.rc === "OK") {
+      authToken = response.data.context.token;
+      console.log("✅ [authToServer] Login successful. Token:", authToken);
+      localStorage.setItem("authToken", authToken);
+    } else {
+      console.warn("⚠️ [authToServer] Login failed or empty RC:", responseData);
+    }
+
+    return { status: response?.statusText, data: responseData };
+  } catch (error) {
+    console.error("🔥 [authToServer] Axios error:", error?.message, error?.stack);
+    return { status: "error", error };
+  }
+};
