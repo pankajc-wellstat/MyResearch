@@ -1,5 +1,6 @@
 export const authToServer = async (data) => {
   try {
+    console.log("Starting auth process. Resetting token.");
     authToken = null;
 
     for (let i = 0; i < REGIONS.length; i++) {
@@ -20,17 +21,29 @@ export const authToServer = async (data) => {
         headers: { "Content-type": "application/json" },
       };
 
-      const response = await axios(cfg);
+      console.log(`Attempting region: ${region}`);
+      console.log("Request config:", cfg);
+
+      let response;
+      try {
+        response = await axios(cfg);
+      } catch (err) {
+        console.warn(`Axios error from region ${region}:`, err.message);
+        if (i < REGIONS.length - 1) continue;
+        throw err; // final region also failed
+      }
+
       const responseData = response?.data ?? {};
+      console.log(`Response from ${region}:`, responseData);
 
       if (
         typeof responseData === "string" &&
-        (responseData?.indexOf("https://accounts.google.com") !== -1 ||
-          responseData?.indexOf("https://login.microsoftonline.com") !== -1 ||
-          responseData?.indexOf("/login?token=") !== -1)
+        (responseData?.includes("https://accounts.google.com") ||
+         responseData?.includes("https://login.microsoftonline.com") ||
+         responseData?.includes("/login?token="))
       ) {
+        console.log("Detected external login redirect.");
         window.location.href = responseData;
-
         return;
       }
 
@@ -38,15 +51,20 @@ export const authToServer = async (data) => {
         const context = response.data.context;
         const { token: authToken } = context;
 
+        console.log("Login successful. Storing token and backend URL.");
         localStorage.setItem(AUTH_TOKEN_KEY, authToken);
         localStorage.setItem(BACKEND_URL_KEY, backendUrl);
 
         return { status: response?.statusText, data: responseData };
       }
 
+      console.warn(`Auth failed for region ${region}.`, responseData);
+
       if (i < REGIONS.length - 1) continue;
 
       return { status: response?.statusText, data: responseData };
     }
-  } catch (error) {}
+  } catch (error) {
+    console.log("Axios error:", error?.message || "Unknown error");
+  }
 };
