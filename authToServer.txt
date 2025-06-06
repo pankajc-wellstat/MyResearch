@@ -1,6 +1,6 @@
 export const authToServer = async (data) => {
   try {
-    console.log("Starting auth process. Resetting token.");
+    console.log("Starting auth flow...");
     authToken = null;
 
     for (let i = 0; i < REGIONS.length; i++) {
@@ -8,10 +8,7 @@ export const authToServer = async (data) => {
       const backendUrl =
         region === US_EAST_1
           ? appConfig.backendurl
-          : appConfig.backendurl.replaceAll(
-              ".wellstat.io",
-              `-${region}.wellstat.io`,
-            );
+          : appConfig.backendurl.replaceAll(".wellstat.io", `-${region}.wellstat.io`);
 
       const cfg = {
         method: "post",
@@ -27,10 +24,10 @@ export const authToServer = async (data) => {
       let response;
       try {
         response = await axios(cfg);
-      } catch (err) {
-        console.warn(`Axios error from region ${region}:`, err.message);
+      } catch (error) {
+        console.log(`Axios error in region "${region}":`, error?.message || "Unknown error");
         if (i < REGIONS.length - 1) continue;
-        throw err; // final region also failed
+        throw error;
       }
 
       const responseData = response?.data ?? {};
@@ -38,9 +35,9 @@ export const authToServer = async (data) => {
 
       if (
         typeof responseData === "string" &&
-        (responseData?.includes("https://accounts.google.com") ||
-         responseData?.includes("https://login.microsoftonline.com") ||
-         responseData?.includes("/login?token="))
+        (responseData.includes("https://accounts.google.com") ||
+         responseData.includes("https://login.microsoftonline.com") ||
+         responseData.includes("/login?token="))
       ) {
         console.log("Detected external login redirect.");
         window.location.href = responseData;
@@ -51,20 +48,31 @@ export const authToServer = async (data) => {
         const context = response.data.context;
         const { token: authToken } = context;
 
-        console.log("Login successful. Storing token and backend URL.");
+        console.log(`Login successful in region: ${region}`);
         localStorage.setItem(AUTH_TOKEN_KEY, authToken);
         localStorage.setItem(BACKEND_URL_KEY, backendUrl);
 
         return { status: response?.statusText, data: responseData };
       }
 
-      console.warn(`Auth failed for region ${region}.`, responseData);
+      console.warn(`Auth failed in region "${region}":`, responseData);
 
       if (i < REGIONS.length - 1) continue;
 
       return { status: response?.statusText, data: responseData };
     }
   } catch (error) {
-    console.log("Axios error:", error?.message || "Unknown error");
+    console.error("Final error after trying all regions:", {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      response: error.response?.data,
+    });
+
+    return {
+      status: "error",
+      error: error.message,
+      details: error.response?.data || {},
+    };
   }
 };
