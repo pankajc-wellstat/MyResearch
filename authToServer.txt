@@ -1,78 +1,166 @@
-export const authToServer = async (data) => {
-  try {
-    console.log("Starting auth flow...");
-    authToken = null;
+const express = require("express");
+const router = express.Router();
+const utils = require("../helpers/utils");
+const authservice = require("../services/authentication");
+const {
+  sendMessageToQueue,
+  getLogger,
+} = require("@mach-energy/common-backend");
+const {
+  SESSION_EXPIRY_SECONDS,
+  isSsoSimulated,
+  getDeveloperEmail,
+} = require("../config");
+const { getUserSession } = require("../helpers/usersession");
+const contactRepo = require("@mach-energy/common-calc/src/repositories/contact_repository");
+const ssoProviderRepo = require("../auth/sso_provider_repository");
+const { onSuccessfulLogin } = require("../services/authentication");
 
-    for (let i = 0; i < REGIONS.length; i++) {
-      const region = REGIONS[i];
-      const backendUrl =
-        region === US_EAST_1
-          ? appConfig.backendurl
-          : appConfig.backendurl.replaceAll(".wellstat.io", `-${region}.wellstat.io`);
+router.post("/", async function (req, res) {
+  const db = req.ies.dbsql;
+  const { email, isForgotPassword, password: pwd, sso, token } = req.body;
+  const isSimulatedSsoLogin = sso && isSsoSimulated();
 
-      const cfg = {
-        method: "post",
-        url: `${backendUrl}/auth`,
-        data,
-        timeout: 2000,
-        headers: { "Content-type": "application/json" },
-      };
+  console.log("/auth POST hit");
+  console.log("Request body:", req.body);
 
-      console.log(`Attempting region: ${region}`);
-      console.log("Request config:", cfg);
-
-      let response;
-      try {
-        response = await axios(cfg);
-      } catch (error) {
-        console.log(`Axios error in region "${region}":`, error?.message || "Unknown error");
-        if (i < REGIONS.length - 1) continue;
-        throw error;
+  let tokenAuthenticatedSession;
+  if (isSimulatedSsoLogin) {
+    tokenAuthenticatedSession = {
+      userinfo: {
+        email: getDeveloperEmail(),
+      },
+    };
+  } else if (sso) {
+    const ssoProviders = await ssoProviderRepo.findAll({ db });
+    for (const { domains, name } of ssoProviders) {
+      if (new Set(domains.split(",")).has(sso)) {
+        res.redirect(`/auth/sso/${name}/login`);
+        break;
       }
-
-      const responseData = response?.data ?? {};
-      console.log(`Response from ${region}:`, responseData);
-
-      if (
-        typeof responseData === "string" &&
-        (responseData.includes("https://accounts.google.com") ||
-         responseData.includes("https://login.microsoftonline.com") ||
-         responseData.includes("/login?token="))
-      ) {
-        console.log("Detected external login redirect.");
-        window.location.href = responseData;
-        return;
-      }
-
-      if (responseData?.rc === "OK") {
-        const context = response.data.context;
-        const { token: authToken } = context;
-
-        console.log(`Login successful in region: ${region}`);
-        localStorage.setItem(AUTH_TOKEN_KEY, authToken);
-        localStorage.setItem(BACKEND_URL_KEY, backendUrl);
-
-        return { status: response?.statusText, data: responseData };
-      }
-
-      console.warn(`Auth failed in region "${region}":`, responseData);
-
-      if (i < REGIONS.length - 1) continue;
-
-      return { status: response?.statusText, data: responseData };
     }
-  } catch (error) {
-    console.error("Final error after trying all regions:", {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      response: error.response?.data,
+    return;
+  }
+
+  if (token) {
+    try {
+      tokenAuthenticatedSession = await getUserSession(
+        token,
+        SESSION_EXPIRY_SECONDS,
+      );
+    } catch (e) {
+      console.error("Error parsing token session:", e.message);
+    }
+  }
+
+  if (!tokenAuthenticatedSession && (!email || !(pwd || isForgotPassword))) {
+    const ret = {
+      rc: "ERROR",
+      context: { userMessages: ["Missing parameters"], sysMessages: [] },
+    };
+    res.setHeader("X-Debug-Origin", "missing-params");
+    res.status(200).json(ret);
+    utils.log("Failed Login");
+    req.ies.release();
+    return;
+  }
+
+  if (isForgotPassword) {
+    const ret = {
+      rc: "ERROR",
+      context: { userMessages: [], sysMessages: [] },
+    };
+
+    try {
+      await sendMessageToQueue(`reset-password`, { email });
+      ret.rc = "OK";
+      res.setHeader("X-Debug-Origin", "forgot-password-flow");
+      res.status(200).json(ret);
+    } catch (e) {
+      getLogger().error(e);
+      res.setHeader("X-Debug-Origin", "forgot-password-error");
+      res.status(500).json(ret);
+    } finally {
+      req.ies.release();
+    }
+    return;
+  }
+
+  let authenticateConfig = {
+    db,
+    email,
+    password: pwd,
+  };
+
+  if (tokenAuthenticatedSession) {
+    const email = tokenAuthenticatedSession.userinfo.email;
+    const user = await contactRepo.findUserByEmail(db, email);
+    authenticateConfig = user
+      ? {
+          ...authenticateConfig,
+          email,
+          password: user.password,
+          isHashedPassword: true,
+          isSsoLogin: !!token,
+        }
+      : authenticateConfig;
+  }
+
+  const authinfo = await authservice.authenticateUser(authenticateConfig);
+  console.log("Auth result rc:", authinfo?.rc);
+
+  if (isSimulatedSsoLogin) {
+    const ret = await onSuccessfulLogin(authinfo, req, authenticateConfig.email);
+    res.setHeader("X-Debug-Origin", "simulated-sso-success");
+    res.send(`/login?token=${ret.context?.token}`);
+    return;
+  }
+
+  if (authinfo && authinfo.rc === "OK") {
+    const ret = await authservice.onSuccessfulLogin(authinfo, req, authenticateConfig.email);
+
+    // Debug headers to inspect at CloudFront
+    const body = JSON.stringify(ret);
+    res.setHeader("Content-Length", Buffer.byteLength(body));
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("X-Debug-Origin-Status", "rc:OK");
+    res.setHeader("X-Debug-Origin-Size", Buffer.byteLength(body));
+    res.setHeader("X-Debug-Origin-Email", authenticateConfig.email);
+    res.setHeader("X-Debug-Origin-Time", new Date().toISOString());
+
+    console.log("Login successful:", {
+      email: authenticateConfig.email,
+      size: Buffer.byteLength(body),
+      region: process.env.AWS_REGION || "not-set",
     });
 
-    return {
-      status: "error",
-      error: error.message,
-      details: error.response?.data || {},
-    };
+    res.status(200).end(body);
+  } else {
+    try {
+      const ret = {
+        rc: "ERROR",
+        context: {
+          userMessages: ["Invalid, IP Address Logged"],
+          sysMessages: [],
+        },
+      };
+
+      const body = JSON.stringify(ret);
+      res.setHeader("X-Debug-Origin-Status", "rc:ERROR");
+      res.setHeader("X-Debug-Origin-Email", authenticateConfig.email || "unknown");
+      res.setHeader("X-Debug-Origin-Time", new Date().toISOString());
+      res.setHeader("Content-Length", Buffer.byteLength(body));
+      res.setHeader("Content-Type", "application/json");
+
+      console.warn("Login failed:", authenticateConfig.email);
+
+      res.status(200).end(body);
+    } catch (eaterror) {
+      console.error("Failed to send login error response:", eaterror.message);
+    }
   }
-};
+
+  req.ies.release();
+});
+
+module.exports = router;
