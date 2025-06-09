@@ -1,166 +1,131 @@
-const express = require("express");
-const router = express.Router();
-const utils = require("../helpers/utils");
-const authservice = require("../services/authentication");
-const {
-  sendMessageToQueue,
-  getLogger,
-} = require("@mach-energy/common-backend");
-const {
-  SESSION_EXPIRY_SECONDS,
-  isSsoSimulated,
-  getDeveloperEmail,
-} = require("../config");
-const { getUserSession } = require("../helpers/usersession");
-const contactRepo = require("@mach-energy/common-calc/src/repositories/contact_repository");
-const ssoProviderRepo = require("../auth/sso_provider_repository");
-const { onSuccessfulLogin } = require("../services/authentication");
+✅ PPT Deck Title:
+“Conversational AI to Simplify Platform Navigation for Building Owners”
 
-router.post("/", async function (req, res) {
-  const db = req.ies.dbsql;
-  const { email, isForgotPassword, password: pwd, sso, token } = req.body;
-  const isSimulatedSsoLogin = sso && isSsoSimulated();
+Slide 1: Title Slide
+Title:
+AI Chatbot for Guided Navigation in Building Management Platform
+Subtitle:
+Empowering Users to Use the Platform with Confidence
 
-  console.log("/auth POST hit");
-  console.log("Request body:", req.body);
+Slide 2: Current Challenges Faced by Building Owners
+Title:
+What Building Owners Struggle With Today
 
-  let tokenAuthenticatedSession;
-  if (isSimulatedSsoLogin) {
-    tokenAuthenticatedSession = {
-      userinfo: {
-        email: getDeveloperEmail(),
-      },
-    };
-  } else if (sso) {
-    const ssoProviders = await ssoProviderRepo.findAll({ db });
-    for (const { domains, name } of ssoProviders) {
-      if (new Set(domains.split(",")).has(sso)) {
-        res.redirect(`/auth/sso/${name}/login`);
-        break;
-      }
-    }
-    return;
-  }
+Content (Bullets):
 
-  if (token) {
-    try {
-      tokenAuthenticatedSession = await getUserSession(
-        token,
-        SESSION_EXPIRY_SECONDS,
-      );
-    } catch (e) {
-      console.error("Error parsing token session:", e.message);
-    }
-  }
+Many new users are unfamiliar with the platform layout
 
-  if (!tokenAuthenticatedSession && (!email || !(pwd || isForgotPassword))) {
-    const ret = {
-      rc: "ERROR",
-      context: { userMessages: ["Missing parameters"], sysMessages: [] },
-    };
-    res.setHeader("X-Debug-Origin", "missing-params");
-    res.status(200).json(ret);
-    utils.log("Failed Login");
-    req.ies.release();
-    return;
-  }
+Complex menus to reach key data (e.g., energy, occupancy, billing)
 
-  if (isForgotPassword) {
-    const ret = {
-      rc: "ERROR",
-      context: { userMessages: [], sysMessages: [] },
-    };
+No centralized help section or walkthroughs
 
-    try {
-      await sendMessageToQueue(`reset-password`, { email });
-      ret.rc = "OK";
-      res.setHeader("X-Debug-Origin", "forgot-password-flow");
-      res.status(200).json(ret);
-    } catch (e) {
-      getLogger().error(e);
-      res.setHeader("X-Debug-Origin", "forgot-password-error");
-      res.status(500).json(ret);
-    } finally {
-      req.ies.release();
-    }
-    return;
-  }
+Need to depend on training or support teams for basic questions
 
-  let authenticateConfig = {
-    db,
-    email,
-    password: pwd,
-  };
+Time-consuming to find simple actions like:
 
-  if (tokenAuthenticatedSession) {
-    const email = tokenAuthenticatedSession.userinfo.email;
-    const user = await contactRepo.findUserByEmail(db, email);
-    authenticateConfig = user
-      ? {
-          ...authenticateConfig,
-          email,
-          password: user.password,
-          isHashedPassword: true,
-          isSsoLogin: !!token,
-        }
-      : authenticateConfig;
-  }
+Viewing historical tenant bills
 
-  const authinfo = await authservice.authenticateUser(authenticateConfig);
-  console.log("Auth result rc:", authinfo?.rc);
+Checking IAQ benchmark reports
 
-  if (isSimulatedSsoLogin) {
-    const ret = await onSuccessfulLogin(authinfo, req, authenticateConfig.email);
-    res.setHeader("X-Debug-Origin", "simulated-sso-success");
-    res.send(`/login?token=${ret.context?.token}`);
-    return;
-  }
+Identifying steam trap health
 
-  if (authinfo && authinfo.rc === "OK") {
-    const ret = await authservice.onSuccessfulLogin(authinfo, req, authenticateConfig.email);
+Monitoring HVAC or sensor statuses
 
-    // Debug headers to inspect at CloudFront
-    const body = JSON.stringify(ret);
-    res.setHeader("Content-Length", Buffer.byteLength(body));
-    res.setHeader("Content-Type", "application/json");
-    res.setHeader("X-Debug-Origin-Status", "rc:OK");
-    res.setHeader("X-Debug-Origin-Size", Buffer.byteLength(body));
-    res.setHeader("X-Debug-Origin-Email", authenticateConfig.email);
-    res.setHeader("X-Debug-Origin-Time", new Date().toISOString());
+Slide 3: Example User Struggles
+Title:
+Examples of Common User Questions
 
-    console.log("Login successful:", {
-      email: authenticateConfig.email,
-      size: Buffer.byteLength(body),
-      region: process.env.AWS_REGION || "not-set",
-    });
+Table Format:
 
-    res.status(200).end(body);
-  } else {
-    try {
-      const ret = {
-        rc: "ERROR",
-        context: {
-          userMessages: ["Invalid, IP Address Logged"],
-          sysMessages: [],
-        },
-      };
+User Intent	Current Pain
+“How do I check bills for Tenant A?”	Must search through multiple menus
+“Where can I find CO2 level charts?”	Doesn’t know where air quality data is
+“How do I assign meters to tenants?”	Unaware of admin configuration process
+“How to generate quarterly bills?”	Steps not intuitive without training
 
-      const body = JSON.stringify(ret);
-      res.setHeader("X-Debug-Origin-Status", "rc:ERROR");
-      res.setHeader("X-Debug-Origin-Email", authenticateConfig.email || "unknown");
-      res.setHeader("X-Debug-Origin-Time", new Date().toISOString());
-      res.setHeader("Content-Length", Buffer.byteLength(body));
-      res.setHeader("Content-Type", "application/json");
+Slide 4: Introducing the Navigation Chatbot
+Title:
+Meet Your Virtual Assistant for Navigation Help
 
-      console.warn("Login failed:", authenticateConfig.email);
+Bullet Points:
 
-      res.status(200).end(body);
-    } catch (eaterror) {
-      console.error("Failed to send login error response:", eaterror.message);
-    }
-  }
+Users can type simple questions in plain English
 
-  req.ies.release();
-});
+Chatbot replies with step-by-step instructions
 
-module.exports = router;
+Accessible directly inside the web platform
+
+Removes guesswork and enhances onboarding
+
+Reduces support tickets and training time
+
+Slide 5: Example Interactions
+Title:
+What the Chatbot Can Answer
+
+Table Format:
+
+User Question	Chatbot Response
+“How do I check last month’s bill for Tenant 3?”	“Go to Tenant Billing > View History > Select Tenant 3 > Choose last month”
+“Where do I view energy consumption?”	“Navigate to Dashboard > Energy Tab > Select date range”
+“How to add a new tenant?”	“Go to Building Admin > Tenants > Add New Tenant”
+“How to assign steam meters?”	“Admin Panel > Meter Management > Assign to Floor/Tenant”
+
+Slide 6: Technical Overview
+Title:
+How the Chatbot Works (At a High Level)
+
+Diagram Elements:
+
+Chat UI in React Web App
+
+Node.js backend with Chatbot Logic
+
+Knowledge Base (FAQs, Navigation Steps in JSON/CSV/Vector DB)
+
+LLM (OpenAI / Azure OpenAI) to parse and match user intent
+
+No need to connect to live data for this version
+
+Slide 7: Benefits to the Business
+Title:
+Why This Chatbot is a Smart Investment
+
+Bullet Points:
+✅ Improves platform adoption among new users
+✅ Saves training and onboarding costs
+✅ Reduces support/helpdesk queries
+✅ Builds user confidence in self-navigation
+✅ Available 24/7 inside the platform
+
+Slide 8: Rollout Plan (Phase 1)
+Title:
+Minimal Effort, Maximum Impact
+
+Phase 1 Scope:
+
+~50 Common Navigation Questions
+
+Basic UI chatbot interface
+
+Integrated in existing web app
+
+Feedback loop to improve accuracy
+
+Timeline Estimate:
+
+Setup & content creation: 2–3 weeks
+
+Chatbot integration: 1–2 weeks
+
+Testing & go-live: 1 week
+
+Slide 9: Call to Action
+Title:
+Let’s Make the Platform Instantly Usable
+
+Content:
+Empower your building owners with a smart assistant that knows the platform inside-out.
+Let’s start a pilot and roll out your own AI Navigation Guide.
+
+➡️ Next Step: Approve 50 questions for Phase 1 build-out.
