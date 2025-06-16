@@ -1,0 +1,352 @@
+[
+  {
+    "ID": "Q001",
+    "Category": "Building Navigation",
+    "Question": "How do I open a building’s dashboard?",
+    "Answer": "Navigate to Buildings > Select a building > Click on Dashboard.",
+    "Screenshot Reference": "building_dashboard.png"
+  },
+  {
+    "ID": "Q002",
+    "Category": "Energy Insights",
+    "Question": "Where can I see energy data for a building?",
+    "Answer": "Go to Buildings > Select the building > Click on Energy > Choose Energy Data.",
+    "Screenshot Reference": "energy_data_tab.png"
+  },
+  {
+    "ID": "Q003",
+    "Category": "Energy Insights",
+    "Question": "How can I view energy usage trends for a building?",
+    "Answer": "Go to Buildings > Select the building > Click on Energy > Choose Energy Trend.",
+    "Screenshot Reference": "energy_trend_graph.png"
+  },
+  {
+    "ID": "Q004",
+    "Category": "Reports",
+    "Question": "Where do I find energy reports for a specific building?",
+    "Answer": "Go to Buildings > Select the building > Click Energy > Open Energy Reports.",
+    "Screenshot Reference": "energy_reports.png"
+  },
+  {
+    "ID": "Q005",
+    "Category": "Billing",
+    "Question": "How do I check electricity or gas bills for a building?",
+    "Answer": "Navigate to Buildings > Select the building > Go to Energy > Click Energy Bills.",
+    "Screenshot Reference": "energy_bills.png"
+  },
+  {
+    "ID": "Q006",
+    "Category": "Ratings",
+    "Question": "How can I see the Energy Star rating for a building?",
+    "Answer": "Navigate to Buildings > Select the building > Click Energy > Choose Energy Star.",
+    "Screenshot Reference": "energy_star_rating.png"
+  },
+  {
+    "ID": "Q007",
+    "Category": "Metrics",
+    "Question": "Where do I find the Functional EUI for a building?",
+    "Answer": "Go to Buildings > Select the building > Click Energy > Choose Functional EUI.",
+    "Screenshot Reference": "functional_eui.png"
+  },
+  {
+    "ID": "Q008",
+    "Category": "Event Performance",
+    "Question": "How do I check performance during a demand response event?",
+    "Answer": "Go to Buildings > Select the building > Click Demand Response > View event performance chart.",
+    "Screenshot Reference": "demand_response.png"
+  },
+  {
+    "ID": "Q009",
+    "Category": "Demand Response",
+    "Question": "Where can I find the curtailment plan for a building?",
+    "Answer": "Go to Buildings > Select the building > Demand Response > Curtailment Plan.",
+    "Screenshot Reference": "curtailment_plan.png"
+  },
+  {
+    "ID": "Q010",
+    "Category": "Demand Response",
+    "Question": "How do I access demand response performance reports?",
+    "Answer": "Go to Buildings > Select the building > Demand Response > Performance Report.",
+    "Screenshot Reference": "demand_response_report.png"
+  },
+  {
+    "ID": "Q011",
+    "Category": "Occupancy",
+    "Question": "Where can I view current occupancy charts for a building?",
+    "Answer": "Go to Buildings > Select the building > Occupancy > Occupancy Chart.",
+    "Screenshot Reference": "occupancy_chart.png"
+  },
+  {
+    "ID": "Q012",
+    "Category": "Occupancy",
+    "Question": "How do I view occupancy trends over time?",
+    "Answer": "Go to Buildings > Select the building > Occupancy > Occupancy Trending.",
+    "Screenshot Reference": "occupancy_trends.png"
+  },
+  {
+    "ID": "Q013",
+    "Category": "Occupancy",
+    "Question": "Where can I compare occupancy across time or zones?",
+    "Answer": "Go to Buildings > Select the building > Occupancy > Occupancy Compare.",
+    "Screenshot Reference": "occupancy_compare.png"
+  },
+  {
+    "ID": "Q014",
+    "Category": "Occupancy",
+    "Question": "How do I view occupancy sensor data?",
+    "Answer": "Go to Buildings > Select the building > Occupancy > Occupancy Sensors.",
+    "Screenshot Reference": "occupancy_sensors.png"
+  },
+  {
+    "ID": "Q015",
+    "Category": "Air Quality",
+    "Question": "Where do I find air quality details for a building?",
+    "Answer": "Go to Buildings > Select the building > Air Quality.",
+    "Screenshot Reference": "air_quality.png"
+  },
+  {
+    "ID": "Q016",
+    "Category": "Tenant Billing",
+    "Question": "How do I access tenant billing details for a building?",
+    "Answer": "Go to Buildings > Select the building > Tenant Billing.",
+    "Screenshot Reference": "tenant_billing.png"
+  },
+  {
+    "ID": "Q017",
+    "Category": "Notes and Docs",
+    "Question": "Where can I view notes and documents for a building?",
+    "Answer": "Go to Buildings > Select the building > Notes & Docs.",
+    "Screenshot Reference": "notes_docs.png"
+  },
+  {
+    "ID": "Q018",
+    "Category": "Settings",
+    "Question": "How do I update settings for a building?",
+    "Answer": "Go to Buildings > Select the building > Settings.",
+    "Screenshot Reference": "building_settings.png"
+  },
+  {
+    "ID": "Q019",
+    "Category": "Air Quality",
+    "Question": "How can I check real-time air quality data for a building?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Air Quality.",
+    "Screenshot Reference": "air_quality_realtime.png"
+  },
+  {
+    "ID": "Q020",
+    "Category": "Air Quality",
+    "Question": "Where can I view air quality trends over time?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Trends.",
+    "Screenshot Reference": "air_quality_trends.png"
+  },
+  {
+    "ID": "Q021",
+    "Category": "Air Quality",
+    "Question": "How do I see the devices monitoring air quality?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Devices.",
+    "Screenshot Reference": "air_quality_devices.png"
+  },
+  {
+    "ID": "Q022",
+    "Category": "Air Quality",
+    "Question": "How can I find air quality data by zones or rooms?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Spaces.",
+    "Screenshot Reference": "air_quality_spaces.png"
+  },
+  {
+    "ID": "Q023",
+    "Category": "Air Quality",
+    "Question": "Where can I download air quality reports?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Reports.",
+    "Screenshot Reference": "air_quality_reports.png"
+  },
+  {
+    "ID": "Q024",
+    "Category": "Air Quality",
+    "Question": "How can I monitor the air sensors in a building?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Sensors.",
+    "Screenshot Reference": "air_sensors.png"
+  },
+  {
+    "ID": "Q025",
+    "Category": "Air Quality",
+    "Question": "Where is the admin settings section for air quality devices?",
+    "Answer": "Go to Buildings > Select the building > Air Quality > Admin Devices.",
+    "Screenshot Reference": "air_quality_admin_devices.png"
+  },
+  {
+    "ID": "Q026",
+    "Category": "Tenant Billing",
+    "Question": "How do I configure tenant billing settings?",
+    "Answer": "Go to Buildings > Select the building > Tenant Billing > Configure.",
+    "Screenshot Reference": "tenant_billing_configure.png"
+  },
+  {
+    "ID": "Q027",
+    "Category": "Tenant Billing",
+    "Question": "Where can I run a tenant billing report?",
+    "Answer": "Go to Buildings > Select the building > Tenant Billing > Run Report.",
+    "Screenshot Reference": "tenant_billing_report.png"
+  },
+  {
+    "ID": "Q028",
+    "Category": "Tenant Billing",
+    "Question": "How do I view past tenant billing history?",
+    "Answer": "Go to Buildings > Select the building > Tenant Billing > View History.",
+    "Screenshot Reference": "tenant_billing_history.png"
+  },
+  {
+    "ID": "Q029",
+    "Category": "Notes and Docs",
+    "Question": "Where do I add or view building notes?",
+    "Answer": "Go to Buildings > Select the building > Notes and Docs > Notes.",
+    "Screenshot Reference": "building_notes.png"
+  },
+  {
+    "ID": "Q030",
+    "Category": "Notes and Docs",
+    "Question": "How do I access uploaded documents for a building?",
+    "Answer": "Go to Buildings > Select the building > Notes and Docs > File Vault.",
+    "Screenshot Reference": "file_vault.png"
+  },
+  {
+    "ID": "Q031",
+    "Category": "Notes and Docs",
+    "Question": "Where can I perform or view a building audit?",
+    "Answer": "Go to Buildings > Select the building > Notes and Docs > Building Audit.",
+    "Screenshot Reference": "building_audit.png"
+  },
+  {
+    "ID": "Q032",
+    "Category": "Settings",
+    "Question": "How do I set or adjust the building’s budget?",
+    "Answer": "Go to Buildings > Select the building > Settings > Budget.",
+    "Screenshot Reference": "budget_settings.png"
+  },
+  {
+    "ID": "Q033",
+    "Category": "Settings",
+    "Question": "Where can I update general building settings?",
+    "Answer": "Go to Buildings > Select the building > Settings > Building Settings.",
+    "Screenshot Reference": "general_building_settings.png"
+  },
+  {
+    "ID": "Q034",
+    "Category": "Settings",
+    "Question": "How do I debug the CBL (Customer Baseline Load) for a building?",
+    "Answer": "Go to Buildings > Select the building > Settings > CBL Debug.",
+    "Screenshot Reference": "cbl_debug.png"
+  },
+  {
+    "ID": "Q035",
+    "Category": "Settings",
+    "Question": "Where can I debug daily metric data?",
+    "Answer": "Go to Buildings > Select the building > Settings > Daily Metrics Debug.",
+    "Screenshot Reference": "daily_metrics_debug.png"
+  },
+  {
+    "ID": "Q036",
+    "Category": "Settings",
+    "Question": "How do I view or configure specific data points?",
+    "Answer": "Go to Buildings > Select the building > Settings > Data Points.",
+    "Screenshot Reference": "data_points.png"
+  },
+  {
+    "ID": "Q037",
+    "Category": "Settings",
+    "Question": "What is EIMS Configuration, and where do I find it?",
+    "Answer": "It's used for external integration management — found under Buildings > Select the building > Settings > EIMS Configuration.",
+    "Screenshot Reference": "eims_config.png"
+  },
+  {
+    "ID": "Q038",
+    "Category": "Settings",
+    "Question": "How do I manage or review generic equipment?",
+    "Answer": "Go to Buildings > Select the building > Settings > Generic Equipment.",
+    "Screenshot Reference": "generic_equipment.png"
+  },
+  {
+    "ID": "Q039",
+    "Category": "Settings",
+    "Question": "Where can I debug modeling issues for the building?",
+    "Answer": "Go to Buildings > Select the building > Settings > Modeling Debug.",
+    "Screenshot Reference": "modeling_debug.png"
+  },
+  {
+    "ID": "Q040",
+    "Category": "Settings",
+    "Question": "How do I register new components for the building?",
+    "Answer": "Go to Buildings > Select the building > Settings > Register.",
+    "Screenshot Reference": "register_components.png"
+  },
+  {
+    "ID": "Q041",
+    "Category": "Settings",
+    "Question": "Where can I access Air Scan settings?",
+    "Answer": "Go to Buildings > Select the building > Settings > Air Scan.",
+    "Screenshot Reference": "air_scan.png"
+  },
+  {
+    "ID": "Q042",
+    "Category": "Settings",
+    "Question": "How do I configure startup settings for the building systems?",
+    "Answer": "Go to Buildings > Select the building > Settings > Startup Settings.",
+    "Screenshot Reference": "startup_settings.png"
+  },
+  {
+    "ID": "Q043",
+    "Category": "Settings",
+    "Question": "How do I debug temperature metrics?",
+    "Answer": "Go to Buildings > Select the building > Settings > Temperature Metrics Debug.",
+    "Screenshot Reference": "temperature_metrics_debug.png"
+  },
+  {
+    "ID": "Q044",
+    "Category": "Settings",
+    "Question": "Where can I manage tenants for a specific building?",
+    "Answer": "Go to Buildings > Select the building > Settings > Tenant Management.",
+    "Screenshot Reference": "tenant_management.png"
+  },
+  {
+    "ID": "Q045",
+    "Category": "Portfolio",
+    "Question": "How can I view alerts across my portfolio?",
+    "Answer": "Go to Portfolio > Alerts.",
+    "Screenshot Reference": "portfolio_alerts.png"
+  },
+  {
+    "ID": "Q046",
+    "Category": "Portfolio",
+    "Question": "Where do I find reporting tools or building reports?",
+    "Answer": "Go to Portfolio > Reporting.",
+    "Screenshot Reference": "portfolio_reporting.png"
+  },
+  {
+    "ID": "Q047",
+    "Category": "Portfolio",
+    "Question": "How do I view dashboard features?",
+    "Answer": "Go to Portfolio > Dashboard Feature.",
+    "Screenshot Reference": "portfolio_dashboard_feature.png"
+  },
+  {
+    "ID": "Q048",
+    "Category": "Portfolio",
+    "Question": "How do I access view data tools?",
+    "Answer": "Go to Portfolio > View Data.",
+    "Screenshot Reference": "portfolio_view_data.png"
+  },
+  {
+    "ID": "Q049",
+    "Category": "Portfolio",
+    "Question": "Where do I find Demand Response Event performance?",
+    "Answer": "Go to Portfolio > Demand Response Event performance.",
+    "Screenshot Reference": "portfolio_demand_response_event.png"
+  },
+  {
+    "ID": "Q050",
+    "Category": "Portfolio",
+    "Question": "Where do I find Demand Response Performance Report?",
+    "Answer": "Go to Portfolio > Demand Response Performance Report.",
+    "Screenshot Reference": "portfolio_demand_response_report.png"
+  }
+]
