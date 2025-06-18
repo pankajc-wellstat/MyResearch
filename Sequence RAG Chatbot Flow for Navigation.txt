@@ -1,0 +1,10 @@
+title RAG Chatbot Flow for Navigation Assistance
+
+User->Chatbot UI: Ask "How to generate tenant bills?"
+Chatbot UI->Backend API (NodeJS): Send user query
+Backend API (NodeJS)->Vector DB (Milvus/Weaviate/pgvector): Perform semantic search
+Vector DB (Milvus/Weaviate/pgvector)->Backend API (NodeJS): Return top matched Q&A
+Backend API (NodeJS)->OpenAI API (GPT-3.5/DaVinci): Send query + matched Q&A context
+OpenAI API (GPT-3.5/DaVinci)->Backend API (NodeJS): Return friendly response
+Backend API (NodeJS)->Chatbot UI: Send response
+Chatbot UI->User: Show answer with navigation steps
