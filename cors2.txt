@@ -1,0 +1,57 @@
+export async function authToServer(data) {
+
+  for (let i = 0; i < REGIONS.length; i++) {
+    const region = REGIONS[i];
+    const backendUrl = `https://backend-${region}.wellstat.io`;
+
+    const cfg = {
+      method: "post",
+      url: `${backendUrl}/auth`,
+      data,
+      timeout: 3000,
+      headers: { "Content-type": "application/json" },
+    };
+
+    try {
+      console.log(`Calling /auth in region: ${region}`);
+      const response = await axios(cfg);
+      const responseData = response.data;
+
+      if (responseData?.rc === "INVALID") {
+        return { status: response?.statusText, data: responseData };
+      }
+
+      if (responseData?.rc === "OK") {
+        return { status: response?.statusText, data: responseData };
+      }
+
+      console.log(`Unexpected rc from ${region}:`, responseData?.rc);
+    } catch (error) {
+      console.log(`auth call to ${region} failed:`, error.message);
+
+      // ✅ Handle timeout, network error, or ECONNABORTED
+      if (
+        error.code === "ECONNABORTED" ||
+        error.message.includes("timeout") ||
+        error.message.includes("Network Error")
+      ) {
+        // Move to next region
+        continue;
+      }
+
+      // If error is not recoverable, you can optionally break or return here
+    }
+  }
+
+  // If all regions fail, return fallback error
+  return {
+    status: "Network Error",
+    data: {
+      rc: "ERROR",
+      context: {
+        userMessages: ["Platform unavailable"],
+        sysMessages: [],
+      },
+    },
+  };
+}
