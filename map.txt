@@ -1,0 +1,24 @@
+type LatLngLike = google.maps.LatLng | google.maps.LatLngLiteral;
+
+const isLatLngLiteral = (v: unknown): v is google.maps.LatLngLiteral =>
+  !!v && typeof (v as any).lat === "number" && typeof (v as any).lng === "number";
+
+const latLngEquals = (a: LatLngLike, b: LatLngLike): boolean => {
+  const aa = a instanceof google.maps.LatLng ? a : new google.maps.LatLng(a);
+  const bb = b instanceof google.maps.LatLng ? b : new google.maps.LatLng(b);
+  return aa.equals(bb);
+};
+
+
+const deepCompareEqualsForMaps = createCustomEqual({
+  createIsNestedEqual:
+    (deepEqual) =>
+    (a: unknown, b: unknown): boolean => {
+      const aIsLL = a instanceof google.maps.LatLng || isLatLngLiteral(a);
+      const bIsLL = b instanceof google.maps.LatLng || isLatLngLiteral(b);
+      if (aIsLL && bIsLL) {
+        return latLngEquals(a as LatLngLike, b as LatLngLike);
+      }
+      return deepEqual(a, b);
+    },
+});
