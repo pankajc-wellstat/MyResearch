@@ -71,3 +71,41 @@ const deepCompareEqualsForMaps = createCustomEqual(
       return deepEqual(a, b);
     }) as any // 👈 cast to bypass TS in v4
 );
+------------------------------------------------------------------
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+export default function EquipmentMap(props: {
+  center?: { lat: number; lng: number };
+  zoom?: number;
+  options?: google.maps.MapOptions;
+}) {
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+
+  const defaultLat = 40.73061;
+  const defaultLng = -73.935242;
+  const defaultZoom = 12;
+
+  // Extract primitive values
+  const centerLat = props.center?.lat ?? defaultLat;
+  const centerLng = props.center?.lng ?? defaultLng;
+  const zoomValue = props.zoom ?? defaultZoom;
+
+  // Memoize map options
+  const mapOptions = useMemo<google.maps.MapOptions>(
+    () => ({
+      ...props.options,
+      center: { lat: centerLat, lng: centerLng },
+      zoom: zoomValue,
+    }),
+    [centerLat, centerLng, zoomValue, props.options]
+  );
+
+  // Apply options when map or options change
+  useEffect(() => {
+    if (map) {
+      map.setOptions(mapOptions);
+    }
+  }, [map, mapOptions]);
+
+  return <div id="map" style={{ height: "100%", width: "100%" }} />;
+}
