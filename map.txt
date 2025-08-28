@@ -47,3 +47,27 @@ const deepCompareEqualsForMaps = createCustomEqual({
       return deepEqual(a, b);
     },
 });
+
+
+----------------------------------------------------------
+
+// v4-style, with type cast to any
+const deepCompareEqualsForMaps = createCustomEqual(
+  ((deepEqual: (a: unknown, b: unknown) => boolean) =>
+    (a: unknown, b: unknown): boolean => {
+      const aIsLL =
+        a instanceof google.maps.LatLng ||
+        (!!a && typeof (a as any).lat === "number" && typeof (a as any).lng === "number");
+      const bIsLL =
+        b instanceof google.maps.LatLng ||
+        (!!b && typeof (b as any).lat === "number" && typeof (b as any).lng === "number");
+
+      if (aIsLL && bIsLL) {
+        const aa = a instanceof google.maps.LatLng ? a : new google.maps.LatLng(a);
+        const bb = b instanceof google.maps.LatLng ? b : new google.maps.LatLng(b);
+        return aa.equals(bb);
+      }
+
+      return deepEqual(a, b);
+    }) as any // 👈 cast to bypass TS in v4
+);
