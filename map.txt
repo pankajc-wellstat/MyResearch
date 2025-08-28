@@ -1,24 +1,49 @@
+// --- Replace your helper/comparator block with this ---
+
 type LatLngLike = google.maps.LatLng | google.maps.LatLngLiteral;
 
+const hasGoogleMaps = (): boolean =>
+  typeof window !== "undefined" && !!(window as any).google?.maps?.LatLng;
+
+const isLatLngInstance = (v: unknown): v is google.maps.LatLng =>
+  hasGoogleMaps() && v instanceof (google.maps.LatLng as any);
+
 const isLatLngLiteral = (v: unknown): v is google.maps.LatLngLiteral =>
-  !!v && typeof (v as any).lat === "number" && typeof (v as any).lng === "number";
+  !!v &&
+  typeof (v as any).lat === "number" &&
+  typeof (v as any).lng === "number";
 
+/** Safe equality for LatLng values with or without the Maps runtime loaded */
 const latLngEquals = (a: LatLngLike, b: LatLngLike): boolean => {
-  const aa = a instanceof google.maps.LatLng ? a : new google.maps.LatLng(a);
-  const bb = b instanceof google.maps.LatLng ? b : new google.maps.LatLng(b);
-  return aa.equals(bb);
-};
+  const mapsReady = hasGoogleMaps();
 
+  // If both are literals, compare numerically (works even when Maps isn't loaded)
+  if (isLatLngLiteral(a) && isLatLngLiteral(b)) {
+    return a.lat === b.lat && a.lng === b.lng;
+  }
+
+  // If Maps is available, normalize both sides to LatLng and use .equals()
+  if (mapsReady) {
+    const aa = isLatLngInstance(a) ? a : new google.maps.LatLng(a);
+    const bb = isLatLngInstance(b) ? b : new google.maps.LatLng(b);
+    return aa.equals(bb);
+  }
+
+  // Maps not loaded and at least one side isn't a pure literal → treat as different
+  return false;
+};
 
 const deepCompareEqualsForMaps = createCustomEqual({
   createIsNestedEqual:
     (deepEqual) =>
     (a: unknown, b: unknown): boolean => {
-      const aIsLL = a instanceof google.maps.LatLng || isLatLngLiteral(a);
-      const bIsLL = b instanceof google.maps.LatLng || isLatLngLiteral(b);
+      const aIsLL = isLatLngInstance(a) || isLatLngLiteral(a);
+      const bIsLL = isLatLngInstance(b) || isLatLngLiteral(b);
+
       if (aIsLL && bIsLL) {
         return latLngEquals(a as LatLngLike, b as LatLngLike);
       }
+
       return deepEqual(a, b);
     },
 });
