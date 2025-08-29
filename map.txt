@@ -129,3 +129,48 @@ const deepCompareEqualsForMaps = createCustomEqual({
     },
   }),
 });
+
+const useDeepCompareMemoize = <T,>(value: T): T => {
+  const ref = useRef<T>(value);        // seed with current value, avoids undefined
+  if (!deepCompareEqualsForMaps(value, ref.current)) {
+    ref.current = value;
+  }
+  return ref.current;
+};
+
+----------------------------------------------
+
+// ---- typed & safe helpers (no `any`) ----
+
+type LatLngLike = google.maps.LatLng | google.maps.LatLngLiteral;
+
+// Safe because `typeof google !== 'undefined'` guards access at runtime
+const hasGoogleMaps = (): boolean =>
+  typeof google !== "undefined" && !!google.maps?.LatLng;
+
+const isLatLngInstance = (v: unknown): v is google.maps.LatLng =>
+  hasGoogleMaps() && v instanceof google.maps.LatLng;
+
+// Number guard
+const isNumber = (x: unknown): x is number => typeof x === "number";
+
+const isLatLngLiteral = (v: unknown): v is google.maps.LatLngLiteral => {
+  if (v === null || typeof v !== "object") return false;
+  const rec = v as Record<string, unknown>;
+  return isNumber(rec.lat) && isNumber(rec.lng);
+};
+
+const latLngEquals = (a: LatLngLike, b: LatLngLike): boolean => {
+  // Works even before Maps is loaded
+  if (isLatLngLiteral(a) && isLatLngLiteral(b)) {
+    return a.lat === b.lat && a.lng === b.lng;
+  }
+  // Use .equals() only when Maps is ready
+  if (hasGoogleMaps()) {
+    const aa = isLatLngInstance(a) ? a : new google.maps.LatLng(a);
+    const bb = isLatLngInstance(b) ? b : new google.maps.LatLng(b);
+    return aa.equals(bb);
+  }
+  // If Maps isn't loaded and at least one side isn't a literal, treat as different
+  return false;
+};
