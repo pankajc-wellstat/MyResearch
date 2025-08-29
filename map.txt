@@ -109,3 +109,23 @@ export default function EquipmentMap(props: {
 
   return <div id="map" style={{ height: "100%", width: "100%" }} />;
 }
+
+
+-------------------------------------------------------------
+
+// keep your helpers as-is above: hasGoogleMaps, isLatLngInstance, isLatLngLiteral, latLngEquals
+
+const deepCompareEqualsForMaps = createCustomEqual({
+  // v5 API: customize the built-in object comparator
+  createCustomConfig: (defaultConfig) => ({
+    areObjectsEqual(a, b, state) {
+      const aIsLL = isLatLngInstance(a) || isLatLngLiteral(a);
+      const bIsLL = isLatLngInstance(b) || isLatLngLiteral(b);
+      if (aIsLL && bIsLL) {
+        return latLngEquals(a as LatLngLike, b as LatLngLike);
+      }
+      // fallback to the library's default object equality
+      return defaultConfig.areObjectsEqual(a, b, state);
+    },
+  }),
+});
