@@ -1,0 +1,34 @@
+const deviceId = "A84041282958F6B9";
+const datapointIds = (
+  await db.getRows(
+    `SELECT datapoint_id from datapoints WHERE name like :name`,
+    { name: `${deviceId}%` }
+  )
+).map((x: any) => x.datapoint_id);
+
+const generateIntervals = () => {
+  let base = Math.random() * 100;
+  let step = Math.random() * 10;
+  const intervals = [];
+  for (let i = 0; i < 288; i++) {
+    if (Math.random() > 0.5) {
+      base += step * Math.random();
+    } else {
+      base -= step * Math.random();
+    }
+    intervals.push(Math.round(base * 10) / 10);
+  }
+  return intervals;
+};
+for (const datapointId of datapointIds) {
+  await db.insertSingleRow(
+    `INSERT INTO datapoint_intervals (datapoint_id, day, intervals) VALUES (:datapointId, :day, :intervals)`,
+    {
+      datapointId,
+      day: moment().format("YYYY-MM-DD 00:00:00"),
+      intervals: JSON.stringify(generateIntervals()),
+    }
+  );
+}
+
+return;
