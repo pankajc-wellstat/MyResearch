@@ -1,180 +1,674 @@
-// --- Replace your helper/comparator block with this ---
+import { useParams } from "react-router-dom";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  Col,
+  FormGroup,
+  Input,
+  InputGroup,
+  InputGroupText,
+  Label,
+  Nav,
+  NavItem,
+  NavLink,
+  PopoverBody,
+  PopoverHeader,
+  Row,
+  Spinner,
+  TabContent,
+  TabPane,
+  UncontrolledPopover,
+} from "reactstrap";
+import { getAirscanTestPageAccess } from "./iaqSlice";
+import type {
+  AirscanTestPageAccess,
+  EquipmentTemplate,
+  UploadedAirscan,
+} from "@mach-energy/common-backend/src/types";
+import { useEffect, useRef, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@src/redux/hooks";
+import Select, { SingleValue } from "react-select";
+import { Download, Info, X } from "react-feather";
+import { utils, read } from "xlsx";
+import AirscanTestingTablePublic from "./AirscanTestingTablePublic";
+import {
+  checkUploadedAirscansList,
+  generateManufacturerReport,
+  orphanUploadedAirscans,
+  registerUploadedAirscans,
+  removeAirscanFromTesting,
+} from "./airscanRegistrationSlice";
+import ConfirmModal from "@mycomponents/common/ConfirmModal";
+import DownloadFile from "@mycomponents/common/DownloadFile";
+import toast from "react-hot-toast";
 
-type LatLngLike = google.maps.LatLng | google.maps.LatLngLiteral;
+type EquipmentTemplateOption = SingleValue<{
+  label: string;
+  value: EquipmentTemplate;
+}>;
 
-const hasGoogleMaps = (): boolean =>
-  typeof window !== "undefined" && !!(window as any).google?.maps?.LatLng;
-
-const isLatLngInstance = (v: unknown): v is google.maps.LatLng =>
-  hasGoogleMaps() && v instanceof (google.maps.LatLng as any);
-
-const isLatLngLiteral = (v: unknown): v is google.maps.LatLngLiteral =>
-  !!v &&
-  typeof (v as any).lat === "number" &&
-  typeof (v as any).lng === "number";
-
-/** Safe equality for LatLng values with or without the Maps runtime loaded */
-const latLngEquals = (a: LatLngLike, b: LatLngLike): boolean => {
-  const mapsReady = hasGoogleMaps();
-
-  // If both are literals, compare numerically (works even when Maps isn't loaded)
-  if (isLatLngLiteral(a) && isLatLngLiteral(b)) {
-    return a.lat === b.lat && a.lng === b.lng;
-  }
-
-  // If Maps is available, normalize both sides to LatLng and use .equals()
-  if (mapsReady) {
-    const aa = isLatLngInstance(a) ? a : new google.maps.LatLng(a);
-    const bb = isLatLngInstance(b) ? b : new google.maps.LatLng(b);
-    return aa.equals(bb);
-  }
-
-  // Maps not loaded and at least one side isn't a pure literal → treat as different
-  return false;
+type ExcelRow = {
+  "Device ID": string;
+  "Reference Device ID"?: string;
+  "Equipment Type": string;
 };
 
-const deepCompareEqualsForMaps = createCustomEqual({
-  createIsNestedEqual:
-    (deepEqual) =>
-    (a: unknown, b: unknown): boolean => {
-      const aIsLL = isLatLngInstance(a) || isLatLngLiteral(a);
-      const bIsLL = isLatLngInstance(b) || isLatLngLiteral(b);
+const REFRESH_SECONDS = 30;
 
-      if (aIsLL && bIsLL) {
-        return latLngEquals(a as LatLngLike, b as LatLngLike);
-      }
+const AirscanTestingPagePublic = () => {
+  const { uuid } = useParams();
 
-      return deepEqual(a, b);
-    },
-});
-
-
-----------------------------------------------------------
-
-// v4-style, with type cast to any
-const deepCompareEqualsForMaps = createCustomEqual(
-  ((deepEqual: (a: unknown, b: unknown) => boolean) =>
-    (a: unknown, b: unknown): boolean => {
-      const aIsLL =
-        a instanceof google.maps.LatLng ||
-        (!!a && typeof (a as any).lat === "number" && typeof (a as any).lng === "number");
-      const bIsLL =
-        b instanceof google.maps.LatLng ||
-        (!!b && typeof (b as any).lat === "number" && typeof (b as any).lng === "number");
-
-      if (aIsLL && bIsLL) {
-        const aa = a instanceof google.maps.LatLng ? a : new google.maps.LatLng(a);
-        const bb = b instanceof google.maps.LatLng ? b : new google.maps.LatLng(b);
-        return aa.equals(bb);
-      }
-
-      return deepEqual(a, b);
-    }) as any // 👈 cast to bypass TS in v4
-);
-------------------------------------------------------------------
-import React, { useEffect, useMemo, useRef, useState } from "react";
-
-export default function EquipmentMap(props: {
-  center?: { lat: number; lng: number };
-  zoom?: number;
-  options?: google.maps.MapOptions;
-}) {
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-
-  const defaultLat = 40.73061;
-  const defaultLng = -73.935242;
-  const defaultZoom = 12;
-
-  // Extract primitive values
-  const centerLat = props.center?.lat ?? defaultLat;
-  const centerLng = props.center?.lng ?? defaultLng;
-  const zoomValue = props.zoom ?? defaultZoom;
-
-  // Memoize map options
-  const mapOptions = useMemo<google.maps.MapOptions>(
-    () => ({
-      ...props.options,
-      center: { lat: centerLat, lng: centerLng },
-      zoom: zoomValue,
-    }),
-    [centerLat, centerLng, zoomValue, props.options]
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dispatch = useAppDispatch();
+  const { checkedAirscanUpload, modalMessage } = useAppSelector(
+    ({ airscanRegistration }) => airscanRegistration,
   );
 
-  // Apply options when map or options change
+  const [afterCheckMessage, setAfterCheckMessage] = useState<
+    string | undefined
+  >();
   useEffect(() => {
-    if (map) {
-      map.setOptions(mapOptions);
+    if (modalMessage) {
+      setAfterCheckMessage(modalMessage);
     }
-  }, [map, mapOptions]);
+  }, [modalMessage]);
+  const [loading, setLoading] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const [referenceDeviceId, setReferenceDeviceId] = useState("");
+  const [activeTab, setActiveTab] = useState("non-calibration");
+  const [uploadedAirscans, setUploadedAirscans] = useState<UploadedAirscan[]>(
+    [],
+  );
+  const [equipmentTemplateOption, setEquipmentTemplateOption] =
+    useState<EquipmentTemplateOption>(null);
+  const equipmentTemplate = equipmentTemplateOption?.value;
+  const { templateSensors = [] } = equipmentTemplate ?? {};
+  const showTemplateSensors = templateSensors.length > 0;
+  const [airscanPageInfo, setAirscanPageInfo] = useState<
+    | { access: AirscanTestPageAccess; equipmentTemplates: EquipmentTemplate[] }
+    | undefined
+  >();
 
-  return <div id="map" style={{ height: "100%", width: "100%" }} />;
-}
+  useEffect(() => {
+    const checkAccess = async () => {
+      setLoading(true);
+      const {
+        response: { result },
+      } = await dispatch(getAirscanTestPageAccess({ uuid })).unwrap();
+      setAirscanPageInfo(result);
+      setLoading(false);
+    };
+    checkAccess();
+  }, []);
 
-
--------------------------------------------------------------
-
-// keep your helpers as-is above: hasGoogleMaps, isLatLngInstance, isLatLngLiteral, latLngEquals
-
-const deepCompareEqualsForMaps = createCustomEqual({
-  // v5 API: customize the built-in object comparator
-  createCustomConfig: (defaultConfig) => ({
-    areObjectsEqual(a, b, state) {
-      const aIsLL = isLatLngInstance(a) || isLatLngLiteral(a);
-      const bIsLL = isLatLngInstance(b) || isLatLngLiteral(b);
-      if (aIsLL && bIsLL) {
-        return latLngEquals(a as LatLngLike, b as LatLngLike);
+  const [lastListToUpload, setLastListToUpload] = useState<
+    UploadedAirscan[] | undefined
+  >();
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastListToUpload) {
+        const promise = dispatch(
+          checkUploadedAirscansList({
+            uploadedAirscans: lastListToUpload,
+            forRefresh: true,
+          }),
+        ).unwrap();
+        toast.promise(promise, {
+          loading: "Refreshing...",
+          success: "Refreshed",
+          error: "Couldn't refresh data",
+        });
       }
-      // fallback to the library's default object equality
-      return defaultConfig.areObjectsEqual(a, b, state);
+    }, 1000 * REFRESH_SECONDS);
+    return () => clearInterval(interval);
+  }, [lastListToUpload]);
+
+  if (loading) {
+    return <Spinner />;
+  }
+
+  const access = airscanPageInfo?.access;
+  const equipmentTemplates = airscanPageInfo?.equipmentTemplates;
+  if (!access?.active) {
+    return "Unavailable";
+  }
+
+  const description = access.description;
+
+  const onExcelUpload = (e: any) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e?.target?.result) {
+        const data = new Uint8Array(e.target.result as any);
+        const workbook = read(data, { type: "array" });
+        const worksheet = workbook.Sheets["Template"];
+
+        const json = utils.sheet_to_json(worksheet) as ExcelRow[];
+        setUploadedAirscans(
+          json.map(
+            (row): UploadedAirscan => {
+              const baseData = {
+                deviceId: row["Device ID"],
+                equipmentTemplateName: row["Equipment Type"],
+              };
+              
+              // Add reference device ID if in re-calibration tab and the field exists
+              if (activeTab === "re-calibration" && row["Reference Device ID"]) {
+                return {
+                  ...baseData,
+                  referenceDeviceId: row["Reference Device ID"],
+                } as UploadedAirscan & { referenceDeviceId: string };
+              }
+              
+              return baseData;
+            },
+          ),
+        );
+      }
+    };
+    reader.readAsArrayBuffer(e.target.files![0]);
+  };
+
+  const onClearInput = () => {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      setUploadedAirscans([]);
+    }
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Clear form data when switching tabs
+    setDeviceId("");
+    setReferenceDeviceId("");
+    setEquipmentTemplateOption(null);
+    setUploadedAirscans([]);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  };
+
+  const isDoingSingleUpload = activeTab === "non-calibration"
+    ? deviceId !== "" || equipmentTemplateOption !== null
+    : deviceId !== "" || referenceDeviceId !== "" || equipmentTemplateOption !== null;
+  const isDoingExcelUpload = uploadedAirscans.length > 0;
+  const validateActive = activeTab === "non-calibration" 
+    ? (deviceId !== "" && equipmentTemplateOption !== null) || isDoingExcelUpload
+    : (deviceId !== "" && referenceDeviceId !== "" && equipmentTemplateOption !== null) || isDoingExcelUpload;
+  const testDisabled =
+    Object.keys(checkedAirscanUpload?.unregisteredDeviceIds ?? {}).length === 0;
+  const anySuccessful = Object.values(checkedAirscanUpload?.devices ?? {}).some(
+    (equipment) => {
+      const { lastCommunication, sensors, siteId } = equipment;
+      return (
+        siteId === 3555 &&
+        lastCommunication &&
+        sensors
+          .map(({ datapoint }) => datapoint.latestDataValue)
+          .every((value) => value !== null)
+      );
     },
-  }),
-});
+  );
+  const registerDisabled =
+    Object.values(checkedAirscanUpload?.devices ?? {}).length === 0 ||
+    !anySuccessful;
 
-const useDeepCompareMemoize = <T,>(value: T): T => {
-  const ref = useRef<T>(value);        // seed with current value, avoids undefined
-  if (!deepCompareEqualsForMaps(value, ref.current)) {
-    ref.current = value;
-  }
-  return ref.current;
+  const listToUpload = isDoingSingleUpload
+    ? [
+        activeTab === "re-calibration" 
+          ? {
+              deviceId,
+              referenceDeviceId,
+              equipmentTemplateName: equipmentTemplate?.publicName,
+            } as UploadedAirscan & { referenceDeviceId: string }
+          : {
+              deviceId,
+              equipmentTemplateName: equipmentTemplate?.publicName,
+            } as UploadedAirscan,
+      ]
+    : uploadedAirscans;
+  const onValidateClick = async () => {
+    try {
+      await dispatch(
+        checkUploadedAirscansList({ uploadedAirscans: listToUpload }),
+      ).unwrap();
+      setLastListToUpload(listToUpload);
+    } catch (err) {
+      toast.error("Invalid device ID(s)");
+    }
+  };
+  const onTestClick = () => {
+    if (confirm("Test the unregistered WellStat Air devices?")) {
+      dispatch(registerUploadedAirscans({ uploadedAirscans: listToUpload }));
+    }
+  };
+  const onRemoveAirscanClick = ({ deviceId }: { deviceId: string }) => {
+    if (confirm("Cancel device test?")) {
+      dispatch(
+        removeAirscanFromTesting({
+          uploadedAirscans: listToUpload,
+          deviceId,
+        }),
+      );
+    }
+  };
+  const onRegisterClick = () => {
+    if (
+      confirm(
+        "Register the test WellStat Air devices? This will allow them to be assigned to existing buildings.",
+      )
+    ) {
+      dispatch(orphanUploadedAirscans({ uploadedAirscans: listToUpload }));
+    }
+  };
+
+  return (
+    <Card className="m-2 mx-5">
+      <ConfirmModal
+        hideFooter
+        isOpen={!!afterCheckMessage}
+        onCancel={() => setAfterCheckMessage(undefined)}
+        onConfirm={() => setAfterCheckMessage(undefined)}
+      >
+        {checkedAirscanUpload && <>{afterCheckMessage}</>}
+      </ConfirmModal>
+      <CardHeader>
+        <CardTitle className="w-100">
+          <Row className="justify-content-between">
+            <Col sm={6}>
+              <h2>WellStat Air Testing</h2>
+              <h5 style={{ color: "#999" }}>{description}</h5>
+            </Col>
+            <Col sm={4}>
+              <h6 style={{ color: "#999" }} className="text-end">
+                This page automatically refreshes every {REFRESH_SECONDS}{" "}
+                seconds
+              </h6>
+            </Col>
+          </Row>
+        </CardTitle>
+      </CardHeader>
+      <CardBody>
+        {/* Tab Navigation */}
+        <Nav tabs>
+          <NavItem>
+            <NavLink
+              className={activeTab === "non-calibration" ? "active" : ""}
+              onClick={() => handleTabChange("non-calibration")}
+              style={{ cursor: "pointer" }}
+            >
+              Non-calibration devices
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              className={activeTab === "re-calibration" ? "active" : ""}
+              onClick={() => handleTabChange("re-calibration")}
+              style={{ cursor: "pointer" }}
+            >
+              Re-calibration devices
+            </NavLink>
+          </NavItem>
+        </Nav>
+
+        {/* Tab Content */}
+        <TabContent activeTab={activeTab}>
+          <TabPane tabId="non-calibration">
+            {/* Non-calibration tab content */}
+            <Card className="mt-3">
+              <CardBody style={{ backgroundColor: "#91C8DB", color: "white", textAlign: "center" }}>
+                This Page applied to all SKU(s) except SKU1 and SKU 4
+              </CardBody>
+            </Card>
+            
+            <Row className="justify-content-end mt-3">
+              <Col sm={3}>
+                <Row className="align-items-center justify-content-center">
+                  <Col sm={6} className="text-end pe-0">
+                    Download Template
+                  </Col>
+                  <Col sm={3}>
+                    <a
+                      href="https://images.machenergy.com/static/airscan-registration-templates/airscan_registration.xlsx"
+                      target="_blank"
+                    >
+                      <Button
+                        outline
+                        className="rounded-circle"
+                        style={{ padding: "0.8em" }}
+                      >
+                        <Download cursor="pointer" />
+                      </Button>
+                    </a>
+                  </Col>
+                </Row>
+              </Col>
+            </Row>
+            <Row>
+              <Col sm={3}>
+                <FormGroup>
+                  <Label>Device ID</Label>
+                  <Input
+                    disabled={isDoingExcelUpload}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    value={deviceId}
+                  />
+                </FormGroup>
+              </Col>
+              <Col sm={3}>
+                <FormGroup>
+                  <Label>Equipment Type</Label>
+                  <Row>
+                    <Col sm={showTemplateSensors ? 10 : 12}>
+                      <Select
+                        isDisabled={isDoingExcelUpload}
+                        isClearable
+                        value={equipmentTemplateOption}
+                        onChange={(e) => setEquipmentTemplateOption(e)}
+                        options={Object.values(equipmentTemplates ?? {}).map(
+                          (equipmentTemplate) => ({
+                            label: equipmentTemplate.publicName,
+                            value: equipmentTemplate,
+                          }),
+                        )}
+                        styles={{
+                          menu: (base) => ({ ...base, zIndex: 9999 }),
+                        }}
+                      />
+                    </Col>
+                    {showTemplateSensors && (
+                      <Col
+                        sm={2}
+                        className="text-center"
+                        style={{
+                          display: showTemplateSensors ? "block" : "none",
+                        }}
+                      >
+                        <Info id="supported-sensors" cursor={"pointer"} />
+                        <UncontrolledPopover
+                          placement="right"
+                          target="supported-sensors"
+                        >
+                          <PopoverHeader>Supported Sensors</PopoverHeader>
+                          <PopoverBody>
+                            <ul>
+                              {templateSensors.map(({ id, sensorType }) => (
+                                <li key={id}>{sensorType?.name}</li>
+                              ))}
+                            </ul>
+                          </PopoverBody>
+                        </UncontrolledPopover>
+                      </Col>
+                    )}
+                  </Row>
+                </FormGroup>
+              </Col>
+              <Col sm={1}>
+                <div
+                  className="text-center flex-column justify-content-center d-flex"
+                  style={{
+                    height: "70px",
+                    background:
+                      "linear-gradient(#ddd, #ddd) no-repeat center/2px 100%",
+                  }}
+                >
+                  <div style={{ background: "white", color: "black" }}>OR</div>
+                </div>
+              </Col>
+              <Col sm={4}>
+                <Label>Upload Excel Sheet</Label>
+                <InputGroup>
+                  <Input
+                    innerRef={inputRef}
+                    accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={isDoingSingleUpload}
+                    type="file"
+                    onChange={onExcelUpload}
+                  />
+                  <InputGroupText onClick={onClearInput}>
+                    <X />
+                  </InputGroupText>
+                </InputGroup>
+              </Col>
+            </Row>
+            <Row className="justify-content-end text-end mb-2">
+              <Col sm={2}>
+                <Button onClick={onValidateClick} disabled={!validateActive}>
+                  Validate
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onTestClick}
+                  disabled={!checkedAirscanUpload || testDisabled}
+                >
+                  Test Device(s)
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onRegisterClick}
+                  disabled={!checkedAirscanUpload || registerDisabled}
+                >
+                  Register Device(s)
+                </Button>
+              </Col>
+            </Row>
+          </TabPane>
+
+          <TabPane tabId="re-calibration">
+            {/* Re-calibration tab content */}
+            <Card className="mt-3">
+              <CardBody style={{ backgroundColor: "#91C8DB", color: "white", textAlign: "center" }}>
+                This Page applies to SKU 1 and SKU 4 Only
+              </CardBody>
+            </Card>
+            
+            <Row className="justify-content-end mt-3">
+              <Col sm={3}>
+                <Row className="align-items-center justify-content-center">
+                  <Col sm={6} className="text-end pe-0">
+                    Download Template
+                  </Col>
+                  <Col sm={3}>
+                    <a
+                      href="https://images.machenergy.com/static/airscan-registration-templates/airscan_registration_2.xlsx"
+                      target="_blank"
+                    >
+                      <Button
+                        outline
+                        className="rounded-circle"
+                        style={{ padding: "0.8em" }}
+                      >
+                        <Download cursor="pointer" />
+                      </Button>
+                    </a>
+                  </Col>
+                </Row>
+              </Col>
+            </Row>
+            <Row>
+              <Col sm={2}>
+                <FormGroup>
+                  <Label>Device ID</Label>
+                  <Input
+                    disabled={isDoingExcelUpload}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    value={deviceId}
+                  />
+                </FormGroup>
+              </Col>
+              <Col sm={2}>
+                <FormGroup>
+                  <Label>Reference Device ID</Label>
+                  <Input
+                    disabled={isDoingExcelUpload}
+                    onChange={(e) => setReferenceDeviceId(e.target.value)}
+                    value={referenceDeviceId}
+                  />
+                </FormGroup>
+              </Col>
+              <Col sm={2}>
+                <FormGroup>
+                  <Label>Equipment Type</Label>
+                  <Row>
+                    <Col sm={showTemplateSensors ? 10 : 12}>
+                      <Select
+                        isDisabled={isDoingExcelUpload}
+                        isClearable
+                        value={equipmentTemplateOption}
+                        onChange={(e) => setEquipmentTemplateOption(e)}
+                        options={Object.values(equipmentTemplates ?? {}).map(
+                          (equipmentTemplate) => ({
+                            label: equipmentTemplate.publicName,
+                            value: equipmentTemplate,
+                          }),
+                        )}
+                        styles={{
+                          menu: (base) => ({ ...base, zIndex: 9999 }),
+                        }}
+                      />
+                    </Col>
+                    {showTemplateSensors && (
+                      <Col
+                        sm={2}
+                        className="text-center"
+                        style={{
+                          display: showTemplateSensors ? "block" : "none",
+                        }}
+                      >
+                        <Info id="supported-sensors-recal" cursor={"pointer"} />
+                        <UncontrolledPopover
+                          placement="right"
+                          target="supported-sensors-recal"
+                        >
+                          <PopoverHeader>Supported Sensors</PopoverHeader>
+                          <PopoverBody>
+                            <ul>
+                              {templateSensors.map(({ id, sensorType }) => (
+                                <li key={id}>{sensorType?.name}</li>
+                              ))}
+                            </ul>
+                          </PopoverBody>
+                        </UncontrolledPopover>
+                      </Col>
+                    )}
+                  </Row>
+                </FormGroup>
+              </Col>
+              <Col sm={1}>
+                <div
+                  className="text-center flex-column justify-content-center d-flex"
+                  style={{
+                    height: "70px",
+                    background:
+                      "linear-gradient(#ddd, #ddd) no-repeat center/2px 100%",
+                  }}
+                >
+                  <div style={{ background: "white", color: "black" }}>OR</div>
+                </div>
+              </Col>
+              <Col sm={4}>
+                <Label>Upload Excel Sheet</Label>
+                <InputGroup>
+                  <Input
+                    innerRef={inputRef}
+                    accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={isDoingSingleUpload}
+                    type="file"
+                    onChange={onExcelUpload}
+                  />
+                  <InputGroupText onClick={onClearInput}>
+                    <X />
+                  </InputGroupText>
+                </InputGroup>
+              </Col>
+            </Row>
+            <Row className="justify-content-end text-end mb-2">
+              <Col sm={2}>
+                <Button onClick={onValidateClick} disabled={!validateActive}>
+                  Validate
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onTestClick}
+                  disabled={!checkedAirscanUpload || testDisabled}
+                >
+                  Test Device(s)
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={() => {
+                    if (confirm("Re-calibrate the devices?")) {
+                      // Add re-calibration logic here
+                      console.log("Re-calibrating devices...");
+                    }
+                  }}
+                  disabled={!checkedAirscanUpload || testDisabled}
+                >
+                  Re-Calibrate
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onRegisterClick}
+                  disabled={!checkedAirscanUpload || registerDisabled}
+                >
+                  Register Device(s)
+                </Button>
+              </Col>
+            </Row>
+          </TabPane>
+        </TabContent>
+
+        {/* Existing content that should appear in both tabs */}
+        {checkedAirscanUpload && (
+          <>
+            <Row>
+              <AirscanTestingTablePublic
+                equipmentTemplates={equipmentTemplates ?? []}
+                checkedAirscanUpload={checkedAirscanUpload}
+                onRemoveAirscanClick={onRemoveAirscanClick}
+              />
+            </Row>
+            <Row className="justify-content-end text-end m-2">
+              <Col sm={4}>
+                <Label>Download PDF</Label>
+                <DownloadFile
+                  file_type="application/pdf"
+                  filename="report.pdf"
+                  fetchFileData={() =>
+                    dispatch(
+                      generateManufacturerReport({
+                        uploadedAirscans: listToUpload,
+                        uuid,
+                      }),
+                    )
+                  }
+                />
+              </Col>
+            </Row>
+          </>
+        )}
+      </CardBody>
+    </Card>
+  );
 };
 
-----------------------------------------------
+export default AirscanTestingPagePublic;
 
-// ---- typed & safe helpers (no `any`) ----
-
-type LatLngLike = google.maps.LatLng | google.maps.LatLngLiteral;
-
-// Safe because `typeof google !== 'undefined'` guards access at runtime
-const hasGoogleMaps = (): boolean =>
-  typeof google !== "undefined" && !!google.maps?.LatLng;
-
-const isLatLngInstance = (v: unknown): v is google.maps.LatLng =>
-  hasGoogleMaps() && v instanceof google.maps.LatLng;
-
-// Number guard
-const isNumber = (x: unknown): x is number => typeof x === "number";
-
-const isLatLngLiteral = (v: unknown): v is google.maps.LatLngLiteral => {
-  if (v === null || typeof v !== "object") return false;
-  const rec = v as Record<string, unknown>;
-  return isNumber(rec.lat) && isNumber(rec.lng);
-};
-
-const latLngEquals = (a: LatLngLike, b: LatLngLike): boolean => {
-  // Works even before Maps is loaded
-  if (isLatLngLiteral(a) && isLatLngLiteral(b)) {
-    return a.lat === b.lat && a.lng === b.lng;
-  }
-  // Use .equals() only when Maps is ready
-  if (hasGoogleMaps()) {
-    const aa = isLatLngInstance(a) ? a : new google.maps.LatLng(a);
-    const bb = isLatLngInstance(b) ? b : new google.maps.LatLng(b);
-    return aa.equals(bb);
-  }
-  // If Maps isn't loaded and at least one side isn't a literal, treat as different
-  return false;
-};
 https://app.wellstat.io/test-wellstat-air/7af78b40-47a0-428f-ac43-a764081b01a3
 https://www.figma.com/proto/QLP9XEvh3ajzi8Z4PzZtfj/WellStat-Redesign?page-id=8944%3A47850&node-id=8944-53516&viewport=-1628%2C2170%2C0.25&t=Ofx8dNEGgfXwDt4X-1&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=8944%3A53516
+
 
 
