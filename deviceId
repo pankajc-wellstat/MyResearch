@@ -1260,3 +1260,38 @@ const AirscanTestingPagePublic = () => {
 };
 
 export default AirscanTestingPagePublic;
+
+<Select
+                      isDisabled={isDoingExcelUpload}
+                      isClearable
+                      value={equipmentTemplateOption}
+                      onChange={(e) => setEquipmentTemplateOption(e)}
+                      options={Object.values(equipmentTemplates ?? {})
+                        .filter((equipmentTemplate) => {
+                          const template = equipmentTemplate as EquipmentTemplate;
+                          const publicName = template.publicName;
+                          const isSKU1orSKU4 = publicName.startsWith("SKU1.") || publicName.startsWith("SKU4.");
+                          
+                          // For non-calibration tab: exclude SKU1.x and SKU4.x
+                          if (activeTab === "non-calibration") {
+                            return !isSKU1orSKU4;
+                          }
+                          
+                          // For re-calibration tab: only show SKU1.x and SKU4.x
+                          if (activeTab === "re-calibration") {
+                            return isSKU1orSKU4;
+                          }
+                          
+                          return true;
+                        })
+                        .map((equipmentTemplate) => {
+                          const template = equipmentTemplate as EquipmentTemplate;
+                          return {
+                            label: template.publicName,
+                            value: template,
+                          };
+                        })}
+                      styles={{
+                        menu: (base) => ({ ...base, zIndex: 9999 }),
+                      }}
+                    />
