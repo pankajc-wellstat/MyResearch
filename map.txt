@@ -174,3 +174,6 @@ const latLngEquals = (a: LatLngLike, b: LatLngLike): boolean => {
   // If Maps isn't loaded and at least one side isn't a literal, treat as different
   return false;
 };
+
+https://www.figma.com/proto/QLP9XEvh3ajzi8Z4PzZtfj/WellStat-Redesign?page-id=8944%3A47850&node-id=8944-53516&viewport=-1628%2C2170%2C0.25&t=Ofx8dNEGgfXwDt4X-1&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=8944%3A53516
+
