@@ -1,34 +1,729 @@
-const deviceId = "A84041282958F6B9";
-const datapointIds = (
-  await db.getRows(
-    `SELECT datapoint_id from datapoints WHERE name like :name`,
-    { name: `${deviceId}%` }
-  )
-).map((x: any) => x.datapoint_id);
+import { useParams } from "react-router-dom";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  Col,
+  FormGroup,
+  Input,
+  InputGroup,
+  InputGroupText,
+  Label,
+  PopoverBody,
+  PopoverHeader,
+  Row,
+  Spinner,
+  UncontrolledPopover,
+} from "reactstrap";
+import { getAirscanTestPageAccess } from "./iaqSlice";
+import type {
+  AirscanTestPageAccess,
+  EquipmentTemplate,
+  UploadedAirscan,
+} from "@mach-energy/common-backend/src/types";
+import { useEffect, useRef, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@src/redux/hooks";
+import Select, { SingleValue } from "react-select";
+import { Download, Info, X } from "react-feather";
+import { utils, read } from "xlsx";
+import AirscanTestingTablePublic from "./AirscanTestingTablePublic";
+import {
+  checkUploadedAirscansList,
+  generateManufacturerReport,
+  orphanUploadedAirscans,
+  registerUploadedAirscans,
+  removeAirscanFromTesting,
+} from "./airscanRegistrationSlice";
+import ConfirmModal from "@mycomponents/common/ConfirmModal";
+import DownloadFile from "@mycomponents/common/DownloadFile";
+import toast from "react-hot-toast";
+import "./styles.scss";
 
-const generateIntervals = () => {
-  let base = Math.random() * 100;
-  let step = Math.random() * 10;
-  const intervals = [];
-  for (let i = 0; i < 288; i++) {
-    if (Math.random() > 0.5) {
-      base += step * Math.random();
-    } else {
-      base -= step * Math.random();
-    }
-    intervals.push(Math.round(base * 10) / 10);
-  }
-  return intervals;
+type EquipmentTemplateOption = SingleValue<{
+  label: string;
+  value: EquipmentTemplate;
+}>;
+
+type ExcelRow = {
+  "Device ID": string;
+  "Reference Device ID"?: string;
+  "Equipment Type": string;
 };
-for (const datapointId of datapointIds) {
-  await db.insertSingleRow(
-    `INSERT INTO datapoint_intervals (datapoint_id, day, intervals) VALUES (:datapointId, :day, :intervals)`,
-    {
-      datapointId,
-      day: moment().format("YYYY-MM-DD 00:00:00"),
-      intervals: JSON.stringify(generateIntervals()),
-    }
+
+const REFRESH_SECONDS = 30;
+
+const AirscanTestingPagePublic = () => {
+  const { uuid } = useParams();
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dispatch = useAppDispatch();
+  const { checkedAirscanUpload, modalMessage } = useAppSelector(
+    ({ airscanRegistration }) => airscanRegistration,
   );
+
+  const [afterCheckMessage, setAfterCheckMessage] = useState<
+    string | undefined
+  >();
+  useEffect(() => {
+    if (modalMessage) {
+      setAfterCheckMessage(modalMessage);
+    }
+  }, [modalMessage]);
+  const [loading, setLoading] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const [referenceDeviceId, setReferenceDeviceId] = useState("");
+  const [activeTab, setActiveTab] = useState("non-calibration");
+  const [uploadedAirscans, setUploadedAirscans] = useState<UploadedAirscan[]>(
+    [],
+  );
+  const [equipmentTemplateOption, setEquipmentTemplateOption] =
+    useState<EquipmentTemplateOption>(null);
+  const equipmentTemplate = equipmentTemplateOption?.value;
+  const { templateSensors = [] } = equipmentTemplate ?? {};
+  const showTemplateSensors = templateSensors.length > 0;
+  const [airscanPageInfo, setAirscanPageInfo] = useState<
+    | { access: AirscanTestPageAccess; equipmentTemplates: EquipmentTemplate[] }
+    | undefined
+  >();
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      setLoading(true);
+      const {
+        response: { result },
+      } = await dispatch(getAirscanTestPageAccess({ uuid })).unwrap();
+      setAirscanPageInfo(result);
+      setLoading(false);
+    };
+    checkAccess();
+  }, []);
+
+  const [lastListToUpload, setLastListToUpload] = useState<
+    UploadedAirscan[] | undefined
+  >();
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastListToUpload) {
+        const promise = dispatch(
+          checkUploadedAirscansList({
+            uploadedAirscans: lastListToUpload,
+            forRefresh: true,
+          }),
+        ).unwrap();
+        toast.promise(promise, {
+          loading: "Refreshing...",
+          success: "Refreshed",
+          error: "Couldn't refresh data",
+        });
+      }
+    }, 1000 * REFRESH_SECONDS);
+    return () => clearInterval(interval);
+  }, [lastListToUpload]);
+
+  if (loading) {
+    return <Spinner />;
+  }
+
+  const access = airscanPageInfo?.access;
+  const equipmentTemplates = airscanPageInfo?.equipmentTemplates;
+  if (!access?.active) {
+    return "Unavailable";
+  }
+
+  const description = access.description;
+
+  const onExcelUpload = (e: any) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e?.target?.result) {
+        const data = new Uint8Array(e.target.result as any);
+        const workbook = read(data, { type: "array" });
+        const worksheet = workbook.Sheets["Template"];
+
+        const json = utils.sheet_to_json(worksheet) as ExcelRow[];
+        setUploadedAirscans(
+          json.map(
+            (row): UploadedAirscan => {
+              const baseData = {
+                deviceId: row["Device ID"],
+                equipmentTemplateName: row["Equipment Type"],
+              };
+              
+              // Add reference device ID if in re-calibration tab and the field exists
+              if (activeTab === "re-calibration" && row["Reference Device ID"]) {
+                return {
+                  ...baseData,
+                  referenceDeviceId: row["Reference Device ID"],
+                } as UploadedAirscan & { referenceDeviceId: string };
+              }
+              
+              return baseData;
+            },
+          ),
+        );
+      }
+    };
+    reader.readAsArrayBuffer(e.target.files![0]);
+  };
+
+  const onClearInput = () => {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      setUploadedAirscans([]);
+    }
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Clear form data when switching tabs
+    setDeviceId("");
+    setReferenceDeviceId("");
+    setEquipmentTemplateOption(null);
+    setUploadedAirscans([]);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  };
+
+  const isDoingSingleUpload = activeTab === "non-calibration"
+    ? deviceId !== "" || equipmentTemplateOption !== null
+    : deviceId !== "" || referenceDeviceId !== "" || equipmentTemplateOption !== null;
+  const isDoingExcelUpload = uploadedAirscans.length > 0;
+  const validateActive = activeTab === "non-calibration" 
+    ? (deviceId !== "" && equipmentTemplateOption !== null) || isDoingExcelUpload
+    : (deviceId !== "" && referenceDeviceId !== "" && equipmentTemplateOption !== null) || isDoingExcelUpload;
+  const testDisabled =
+    Object.keys(checkedAirscanUpload?.unregisteredDeviceIds ?? {}).length === 0;
+  const anySuccessful = Object.values(checkedAirscanUpload?.devices ?? {}).some(
+    (equipment) => {
+      const { lastCommunication, sensors, siteId } = equipment;
+      return (
+        siteId === 3555 &&
+        lastCommunication &&
+        sensors
+          .map(({ datapoint }) => datapoint.latestDataValue)
+          .every((value) => value !== null)
+      );
+    },
+  );
+  const registerDisabled =
+    Object.values(checkedAirscanUpload?.devices ?? {}).length === 0 ||
+    !anySuccessful;
+
+  const listToUpload = isDoingSingleUpload
+    ? [
+        activeTab === "re-calibration" 
+          ? {
+              deviceId,
+              referenceDeviceId,
+              equipmentTemplateName: equipmentTemplate?.publicName,
+            } as UploadedAirscan & { referenceDeviceId: string }
+          : {
+              deviceId,
+              equipmentTemplateName: equipmentTemplate?.publicName,
+            } as UploadedAirscan,
+      ]
+    : uploadedAirscans;
+  const onValidateClick = async () => {
+    try {
+      await dispatch(
+        checkUploadedAirscansList({ uploadedAirscans: listToUpload }),
+      ).unwrap();
+      setLastListToUpload(listToUpload);
+    } catch (err) {
+      toast.error("Invalid device ID(s)");
+    }
+  };
+  const onTestClick = () => {
+    if (confirm("Test the unregistered WellStat Air devices?")) {
+      dispatch(registerUploadedAirscans({ uploadedAirscans: listToUpload }));
+    }
+  };
+  const onRemoveAirscanClick = ({ deviceId }: { deviceId: string }) => {
+    if (confirm("Cancel device test?")) {
+      dispatch(
+        removeAirscanFromTesting({
+          uploadedAirscans: listToUpload,
+          deviceId,
+        }),
+      );
+    }
+  };
+  const onRegisterClick = () => {
+    if (
+      confirm(
+        "Register the test WellStat Air devices? This will allow them to be assigned to existing buildings.",
+      )
+    ) {
+      dispatch(orphanUploadedAirscans({ uploadedAirscans: listToUpload }));
+    }
+  };
+
+  return (
+    <Card className="m-2 mx-5">
+      <ConfirmModal
+        hideFooter
+        isOpen={!!afterCheckMessage}
+        onCancel={() => setAfterCheckMessage(undefined)}
+        onConfirm={() => setAfterCheckMessage(undefined)}
+      >
+        {checkedAirscanUpload && <>{afterCheckMessage}</>}
+      </ConfirmModal>
+      <CardHeader>
+        <CardTitle className="w-100">
+          <Row className="justify-content-between">
+            <Col sm={6}>
+              <h2>WellStat Air Testing</h2>
+              <h5 className="description-text">{description}</h5>
+            </Col>
+            <Col sm={4}>
+              <h6 className="refresh-text text-end">
+                This page automatically refreshes every {REFRESH_SECONDS}{" "}
+                seconds
+              </h6>
+            </Col>
+          </Row>
+        </CardTitle>
+      </CardHeader>
+      <CardBody>
+        {/* Tab Navigation - Custom Design */}
+        <div className="custom-tab-navigation">
+          <div
+            className={`custom-tab ${
+              activeTab === "non-calibration" ? "active" : "inactive"
+            }`}
+            onClick={() => handleTabChange("non-calibration")}
+          >
+            Non-calibration devices
+          </div>
+          <div
+            className={`custom-tab ${
+              activeTab === "re-calibration" ? "active" : "inactive"
+            }`}
+            onClick={() => handleTabChange("re-calibration")}
+          >
+            Re-calibration devices
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="custom-tab-content">
+          {activeTab === "non-calibration" && (
+            <>
+              {/* Non-calibration tab content */}
+              <Card className="mb-3">
+                <CardBody className="sku-message-card">
+                  This Page applied to all SKU(s) except SKU1 and SKU 4
+                </CardBody>
+              </Card>
+            
+            <Row className="justify-content-end mt-3">
+              <Col sm={3}>
+                <Row className="align-items-center justify-content-center">
+                  <Col sm={6} className="text-end pe-0">
+                    Download Template
+                  </Col>
+                  <Col sm={3}>
+                    <a
+                      href="https://images.machenergy.com/static/airscan-registration-templates/airscan_registration.xlsx"
+                      target="_blank"
+                    >
+                      <Button
+                        outline
+                        className="rounded-circle download-button"
+                      >
+                        <Download cursor="pointer" />
+                      </Button>
+                    </a>
+                  </Col>
+                </Row>
+              </Col>
+            </Row>
+            <Row>
+              <Col sm={3}>
+                <FormGroup>
+                  <Label>Device ID</Label>
+                  <Input
+                    disabled={isDoingExcelUpload}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    value={deviceId}
+                  />
+                </FormGroup>
+              </Col>
+              <Col sm={3}>
+                <FormGroup>
+                  <Label>Equipment Type</Label>
+                  <Row>
+                    <Col sm={showTemplateSensors ? 10 : 12}>
+                      <Select
+                        isDisabled={isDoingExcelUpload}
+                        isClearable
+                        value={equipmentTemplateOption}
+                        onChange={(e) => setEquipmentTemplateOption(e)}
+                        options={Object.values(equipmentTemplates ?? {}).map(
+                          (equipmentTemplate) => ({
+                            label: equipmentTemplate.publicName,
+                            value: equipmentTemplate,
+                          }),
+                        )}
+                        styles={{
+                          menu: (base) => ({ ...base, zIndex: 9999 }),
+                        }}
+                      />
+                    </Col>
+                    {showTemplateSensors && (
+                      <Col
+                        sm={2}
+                        className="text-center"
+                        style={{
+                          display: showTemplateSensors ? "block" : "none",
+                        }}
+                      >
+                        <Info id="supported-sensors" cursor={"pointer"} />
+                        <UncontrolledPopover
+                          placement="right"
+                          target="supported-sensors"
+                        >
+                          <PopoverHeader>Supported Sensors</PopoverHeader>
+                          <PopoverBody>
+                            <ul>
+                              {templateSensors.map(({ id, sensorType }) => (
+                                <li key={id}>{sensorType?.name}</li>
+                              ))}
+                            </ul>
+                          </PopoverBody>
+                        </UncontrolledPopover>
+                      </Col>
+                    )}
+                  </Row>
+                </FormGroup>
+              </Col>
+              <Col sm={1}>
+                <div className="or-separator">
+                  <div className="or-text">OR</div>
+                </div>
+              </Col>
+              <Col sm={4}>
+                <Label>Upload Excel Sheet</Label>
+                <InputGroup>
+                  <Input
+                    innerRef={inputRef}
+                    accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={isDoingSingleUpload}
+                    type="file"
+                    onChange={onExcelUpload}
+                  />
+                  <InputGroupText onClick={onClearInput}>
+                    <X />
+                  </InputGroupText>
+                </InputGroup>
+              </Col>
+            </Row>
+            <Row className="justify-content-end text-end mb-2">
+              <Col sm={2}>
+                <Button onClick={onValidateClick} disabled={!validateActive}>
+                  Validate
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onTestClick}
+                  disabled={!checkedAirscanUpload || testDisabled}
+                >
+                  Test Device(s)
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onRegisterClick}
+                  disabled={!checkedAirscanUpload || registerDisabled}
+                >
+                  Register Device(s)
+                </Button>
+              </Col>
+            </Row>
+            </>
+          )}
+
+          {activeTab === "re-calibration" && (
+            <>
+              {/* Re-calibration tab content */}
+              <Card className="mb-3">
+                <CardBody className="sku-message-card">
+                  This Page applies to SKU 1 and SKU 4 Only
+                </CardBody>
+              </Card>
+            
+            <Row className="justify-content-end mt-3">
+              <Col sm={3}>
+                <Row className="align-items-center justify-content-center">
+                  <Col sm={6} className="text-end pe-0">
+                    Download Template
+                  </Col>
+                  <Col sm={3}>
+                    <a
+                      href="https://images.machenergy.com/static/airscan-registration-templates/airscan_registration_2.xlsx"
+                      target="_blank"
+                    >
+                      <Button
+                        outline
+                        className="rounded-circle download-button"
+                      >
+                        <Download cursor="pointer" />
+                      </Button>
+                    </a>
+                  </Col>
+                </Row>
+              </Col>
+            </Row>
+            <Row>
+              <Col sm={2}>
+                <FormGroup>
+                  <Label>Device ID</Label>
+                  <Input
+                    disabled={isDoingExcelUpload}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    value={deviceId}
+                  />
+                </FormGroup>
+              </Col>
+              <Col sm={2}>
+                <FormGroup>
+                  <Label>Reference Device ID</Label>
+                  <Input
+                    disabled={isDoingExcelUpload}
+                    onChange={(e) => setReferenceDeviceId(e.target.value)}
+                    value={referenceDeviceId}
+                  />
+                </FormGroup>
+              </Col>
+              <Col sm={2}>
+                <FormGroup>
+                  <Label>Equipment Type</Label>
+                  <Row>
+                    <Col sm={showTemplateSensors ? 10 : 12}>
+                      <Select
+                        isDisabled={isDoingExcelUpload}
+                        isClearable
+                        value={equipmentTemplateOption}
+                        onChange={(e) => setEquipmentTemplateOption(e)}
+                        options={Object.values(equipmentTemplates ?? {}).map(
+                          (equipmentTemplate) => ({
+                            label: equipmentTemplate.publicName,
+                            value: equipmentTemplate,
+                          }),
+                        )}
+                        styles={{
+                          menu: (base) => ({ ...base, zIndex: 9999 }),
+                        }}
+                      />
+                    </Col>
+                    {showTemplateSensors && (
+                      <Col
+                        sm={2}
+                        className="text-center"
+                        style={{
+                          display: showTemplateSensors ? "block" : "none",
+                        }}
+                      >
+                        <Info id="supported-sensors-recal" cursor={"pointer"} />
+                        <UncontrolledPopover
+                          placement="right"
+                          target="supported-sensors-recal"
+                        >
+                          <PopoverHeader>Supported Sensors</PopoverHeader>
+                          <PopoverBody>
+                            <ul>
+                              {templateSensors.map(({ id, sensorType }) => (
+                                <li key={id}>{sensorType?.name}</li>
+                              ))}
+                            </ul>
+                          </PopoverBody>
+                        </UncontrolledPopover>
+                      </Col>
+                    )}
+                  </Row>
+                </FormGroup>
+              </Col>
+              <Col sm={1}>
+                <div className="or-separator">
+                  <div className="or-text">OR</div>
+                </div>
+              </Col>
+              <Col sm={4}>
+                <Label>Upload Excel Sheet</Label>
+                <InputGroup>
+                  <Input
+                    innerRef={inputRef}
+                    accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={isDoingSingleUpload}
+                    type="file"
+                    onChange={onExcelUpload}
+                  />
+                  <InputGroupText onClick={onClearInput}>
+                    <X />
+                  </InputGroupText>
+                </InputGroup>
+              </Col>
+            </Row>
+            <Row className="justify-content-end text-end mb-2">
+              <Col sm={2}>
+                <Button onClick={onValidateClick} disabled={!validateActive}>
+                  Validate
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onTestClick}
+                  disabled={!checkedAirscanUpload || testDisabled}
+                >
+                  Test Device(s)
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={() => {
+                    if (confirm("Re-calibrate the devices?")) {
+                      // Add re-calibration logic here
+                      console.log("Re-calibrating devices...");
+                    }
+                  }}
+                  disabled={!checkedAirscanUpload || testDisabled}
+                >
+                  Re-Calibrate
+                </Button>
+              </Col>
+              <Col sm={2}>
+                <Button
+                  color="primary"
+                  onClick={onRegisterClick}
+                  disabled={!checkedAirscanUpload || registerDisabled}
+                >
+                  Register Device(s)
+                </Button>
+              </Col>
+            </Row>
+            </>
+          )}
+        </div>
+
+        {/* Existing content that should appear in both tabs */}
+        {checkedAirscanUpload && (
+          <>
+            <Row>
+              <AirscanTestingTablePublic
+                equipmentTemplates={equipmentTemplates ?? []}
+                checkedAirscanUpload={checkedAirscanUpload}
+                onRemoveAirscanClick={onRemoveAirscanClick}
+              />
+            </Row>
+            <Row className="justify-content-end text-end m-2">
+              <Col sm={4}>
+                <Label>Download PDF</Label>
+                <DownloadFile
+                  file_type="application/pdf"
+                  filename="report.pdf"
+                  fetchFileData={() =>
+                    dispatch(
+                      generateManufacturerReport({
+                        uploadedAirscans: listToUpload,
+                        uuid,
+                      }),
+                    )
+                  }
+                />
+              </Col>
+            </Row>
+          </>
+        )}
+      </CardBody>
+    </Card>
+  );
+};
+
+export default AirscanTestingPagePublic;
+
+
+// Custom Tab Navigation Styles
+.custom-tab-navigation {
+  display: flex;
+  margin-bottom: 1rem;
+  border: none;
 }
 
-return;
+.custom-tab {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  margin-bottom: -1px;
+  position: relative;
+  
+  &.inactive {
+    background-color: transparent;
+    border-color: transparent;
+    color: #6c757d;
+    border-bottom: 1px solid #dee2e6;
+    z-index: 1;
+  }
+  
+  &.active {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-bottom: 1px solid white;
+    color: #212529;
+    z-index: 10;
+  }
+}
+
+// Tab Content Container
+.custom-tab-content {
+  border: 1px solid #dee2e6;
+  border-top: none;
+  background-color: white;
+  padding: 1rem;
+}
+
+// OR Separator Styles
+.or-separator {
+  display: flex;
+  height: 70px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: linear-gradient(#ddd, #ddd) no-repeat center/2px 100%;
+  
+  .or-text {
+    background: white;
+    color: black;
+  }
+}
+
+// SKU Message Card Styles
+.sku-message-card {
+  background-color: #91C8DB !important;
+  color: white !important;
+  text-align: center;
+  border-radius: 8px !important;
+}
+
+// Download Button Styles
+.download-button {
+  padding: 0.8em;
+}
+
+// Description Text Styles
+.description-text {
+  color: #999;
+}
+
+// Refresh Text Styles  
+.refresh-text {
+  color: #999;
+}
