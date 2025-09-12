@@ -33,3 +33,17 @@
     });
 
     app.use(compression());
+
+
+Act like a lead experience UI developer who worked on React and CSS handling for Navigation, Accordion and css like transform translateX etc
+
+You should read the code of Horizontal Navigation code in BuildingNavigation component which has icon-container with icon-right icon-left. This allow user to move the navigation left and right to see the navigation menu those are going out of page.
+
+Since additional Navigation menu added for "Outdoor Air" and "Outdoor Water" the  Navigation going outside the page adding horizontal scrollbar to the page and not showing the icon-right.
+
+You need to solve a UI navigation overflow issue.
+
+Hint: "nav-container" children element are overflowing. Make the children within the parent container width so it will not overflow for max width of the screen.
+
+
+I have undo the changes because the navigaiton went behind the custome-backdrop and also the navigation container started showing horizontal scrollbar instead showing icon-right. Make sure to take care of this and give proper fix.
