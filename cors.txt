@@ -1,49 +1,132 @@
-    const express = require("express");
-    const cors = require("cors");
-    const { JWT_SECRET } = require("./config");
+.inner-card {
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 24px 0 rgba(34, 41, 47, 0.1);
+  border-radius: 25px;
+  transition:
+    all 0.3s ease-in-out,
+    background 0s,
+    color 0s,
+    border-color 0s;
+}
 
-    const cookieParser = require("cookie-parser");
-    const logger = require("morgan");
-    const augmentRequest = require("./augmentrequest");
+.custom-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
 
-    const authRouter = require("@routes/auth");
-    const dataRouter = require("@routes/data");
-    const publicRouter = require("@routes/public");
-    const jwt = require("express-jwt");
+.left-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: 0;
+}
 
-    const allowedOrigins = [
-      "https://app-demo.wellstat.io",
-      "https://app.wellstat.io",
-    ];
+.device-button-group .btn {
+  font-size: 18px;
+}
 
-    app.use((req, res, next) => {
-      const origin = req.headers.origin;
-      if (allowedOrigins.includes(origin)) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
-        res.setHeader("Access-Control-Allow-Credentials", "true");
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-      }
+// Marker hover area
+.map-marker-hover-area {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  background-color: transparent;
+  z-index: 1000;
+}
 
-      if (req.method === "OPTIONS") {
-        return res.sendStatus(200);
-      }
+// Tooltip styling
+.tooltip.custom-map-tooltip .arrow::before,
+.custom-map-tooltip .arrow::before,
+.tooltip.custom-map-tooltip .tooltip-arrow,
+.custom-map-tooltip .tooltip-arrow {
+  background: white !important;
+  border: none !important;
+}
 
-      next();
-    });
+// Ensure tooltip background is white and text is black, override Reactstrap defaults
+.tooltip.custom-map-tooltip,
+.custom-map-tooltip {
+  background-color: #fff !important;
+  color: #000 !important;
+  border: 1px solid #ccc !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+  max-width: 250px !important;
+  z-index: 9999 !important;
+  text-align: left !important;
+}
 
-    app.use(compression());
+.tooltip.custom-map-tooltip .tooltip-inner,
+.custom-map-tooltip .tooltip-inner {
+  background-color: #fff !important;
+  color: #000 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.custom-map-tooltip-content {
+  text-align: left;
+}
+
+.custom-map-tooltip-row {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.equipment-map-container {
+  display: flex;
+  height: 100%;
+}
+
+.device-calibration-datepicker .form-control[readonly] {
+  background-color: #fff !important;
+  opacity: 1 !important;
+}
+.dark-layout .device-calibration-datepicker .form-control[readonly] {
+  background-color: #283046 !important;
+  opacity: 1 !important;
+}
+// Device cards grid: always 4 columns, consistent width, with spacing from filter
+.mini-cards-container {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  
+  &.vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+  }
+}
+
+.mini-card-wrapper {
+  width: 100%;
+  max-width: 320px;
+  min-width: 220px;
+  margin: 0 auto;
+}
 
 
-Act like a lead experience UI developer who worked on React and CSS handling for Navigation, Accordion and css like transform translateX etc
 
-You should read the code of Horizontal Navigation code in BuildingNavigation component which has icon-container with icon-right icon-left. This allow user to move the navigation left and right to see the navigation menu those are going out of page.
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 
-Since additional Navigation menu added for "Outdoor Air" and "Outdoor Water" the  Navigation going outside the page adding horizontal scrollbar to the page and not showing the icon-right.
+  .filter-col.horizontal {
+    flex: 1;        
+    min-width: 200px;  
+  }
 
-You need to solve a UI navigation overflow issue.
-
-Hint: "nav-container" children element are overflowing. Make the children within the parent container width so it will not overflow for max width of the screen.
-
-
-I have undo the changes because the navigaiton went behind the custome-backdrop and also the navigation container started showing horizontal scrollbar instead showing icon-right. Make sure to take care of this and give proper fix.
+  .filter-col.vertical {
+    flex: 1 1 100%;   
+  }
+}
