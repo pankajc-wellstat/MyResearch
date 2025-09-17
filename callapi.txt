@@ -32,3 +32,10 @@ UPDATE equipment_template SET type = 'indoor' WHERE public_name LIKE '%Indoor%'
 UPDATE equipment_template SET type = 'outdoor' WHERE public_name LIKE '%Outdoor%'
 UPDATE equipment_template SET type = 'water' WHERE public_name LIKE '%SKU200%'
 
+UPDATE data_feed_device_type_template
+SET device_id_mapping = 'EUI',
+    timestamp_mapping = '.timestamp',
+    timestamp_format = 'UNIX_SECONDS'
+WHERE device_type = 'AirScan_Outdoor';
+
+
