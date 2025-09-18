@@ -38,4 +38,20 @@ SET device_id_mapping = 'EUI',
     timestamp_format = 'UNIX_SECONDS'
 WHERE device_type = 'AirScan_Outdoor';
 
+const buildingsTableDataFromRedux = useSelector(
+  (state) => state.appData.buildingsTableData,
+);
+const buildingsTableData =
+  localTableData !== undefined ? localTableData : buildingsTableDataFromRedux;
+useEffect(() => {
+  if (
+    localTableData !== undefined &&
+    buildingsTableDataFromRedux !== undefined &&
+    buildingsTableDataFromRedux !== null
+  ) {
+    setLocalTableData(undefined);
+  }
+}, [buildingsTableDataFromRedux]);
+
+
 
