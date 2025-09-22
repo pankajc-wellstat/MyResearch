@@ -670,5 +670,63 @@ export default AirscanTestingPagePublic;
 https://app.wellstat.io/test-wellstat-air/7af78b40-47a0-428f-ac43-a764081b01a3
 https://www.figma.com/proto/QLP9XEvh3ajzi8Z4PzZtfj/WellStat-Redesign?page-id=8944%3A47850&node-id=8944-53516&viewport=-1628%2C2170%2C0.25&t=Ofx8dNEGgfXwDt4X-1&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=8944%3A53516
 
+const validateRecalibrationDevices = async ({
+  db,
+  uploadedAirscans,
+}: {
+  db: DBContext;
+  uploadedAirscans: UploadedAirscan[];
+}): Promise<{
+  validSerialNumbers: RecalibrationSerialNumberInfo[];
+  invalidSerialNumbers: RecalibrationSerialNumberInfo[];
+}> => {
+  const validSerialNumbers: RecalibrationSerialNumberInfo[] = [];
+  const invalidSerialNumbers: RecalibrationSerialNumberInfo[] = [];
+  for (const airscan of uploadedAirscans) {
+    const { deviceId, referenceDeviceId, serialNumber, equipmentTemplateName } =
+      airscan;
+    if (typeof serialNumber === "string" && serialNumber) {
+      const calibrationInfo = await findCalibrationByParentSerialNumber(
+        db,
+        serialNumber,
+      );
+      if (calibrationInfo && calibrationInfo.length > 0) {
+        const { equipment_id, datapoint_id } = calibrationInfo[0];
+        if (equipment_id === null && datapoint_id === 0) {
+          validSerialNumbers.push({
+            deviceId,
+            referenceDeviceId,
+            serialNumber,
+            equipmentTemplateName,
+          });
+        } else {
+          invalidSerialNumbers.push({
+            deviceId,
+            referenceDeviceId,
+            serialNumber,
+            equipmentTemplateName,
+          });
+        }
+      } else {
+        invalidSerialNumbers.push({
+          deviceId,
+          referenceDeviceId,
+          serialNumber,
+          equipmentTemplateName,
+        });
+      }
+    } else {
+      invalidSerialNumbers.push({
+        deviceId,
+        referenceDeviceId,
+        serialNumber,
+        equipmentTemplateName,
+      });
+    }
+  }
+  return { validSerialNumbers, invalidSerialNumbers };
+};
+
+
 
 
