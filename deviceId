@@ -1,5 +1,8 @@
 E461D4064F265429
-
+ALTER TABLE airscan_test_page_access
+ADD COLUMN timestamp TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE airscan_test_page_access
+ADD COLUMN listtoupload LONGTEXT NULL DEFAULT NULL;
 
 
 SELECT
