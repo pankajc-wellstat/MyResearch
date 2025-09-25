@@ -53,5 +53,31 @@ useEffect(() => {
   }
 }, [buildingsTableDataFromRedux]);
 
+Act like a senior solution architect who has experience on building web platform for business which has capability to process huge files uploaded by users using react etc, SA based Bank asked to propose architecture for web platform using frontend backend Tech stack and to be deploy on on-prem internal.
+
+The application should perform below task:
+biannual reporting requirement to the South African Revenue Service (SARS)
+Report files include IT3B, IT3C, IT3S, and IT3T. These reports cover various entities such as trusts and companies.
+ile Processing Flow:
+SARS sends data in a specific delimited format (e.g., pipe-delimited CSV).
+Files are transferred via Connect Direct to a shared location.
+ETL processes are triggered upon file arrival.
+Data Storage Optimization:
+Current issue: storing large volumes of failed records (e.g., 1 million records per failed file).
+Proposal:
+Avoid storing full failed files.
+Retain only failure logs and rule-level failure details in an audit log table.
+Store full data only when the file passes validation.
+Audit Logging:
+Audit log tables will maintain history of failed records.
+File names with timestamps will help in tracking and debugging.
+
+
+Suggest the architecture component require to cater this functionality.
+1) Frontend
+2) Backend
+3) Data store, audit records of failed files
+4) Storage of the passed files
+5) Rule Engine that runs on files
 
 
