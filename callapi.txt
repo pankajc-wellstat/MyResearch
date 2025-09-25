@@ -80,4 +80,8 @@ Suggest the architecture component require to cater this functionality.
 4) Storage of the passed files
 5) Rule Engine that runs on files
 
+ALTER TABLE equipment
+ADD COLUMN recalibration_date datetime DEFAULT NULL AFTER longitude,
+ADD COLUMN recalibration_status text DEFAULT NULL,
+ADD COLUMN recalibration_notes text DEFAULT NULL
 
