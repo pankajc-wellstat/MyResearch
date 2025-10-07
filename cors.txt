@@ -1,3 +1,5 @@
+E461D4064F265429
+NPT-93379-002
 .inner-card {
   margin-bottom: 2rem;
   box-shadow: 0 4px 24px 0 rgba(34, 41, 47, 0.1);
@@ -130,3 +132,4 @@
     flex: 1 1 100%;   
   }
 }
+
