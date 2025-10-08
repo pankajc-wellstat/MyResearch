@@ -1,4 +1,11 @@
-E461D4064F265429
+if (activeTab === "recalibration") {
+          state.checkedAirscanUploadReCal = {
+            ...state.checkedAirscanUploadReCal,
+            devices: {},
+          };
+        } else {
+          state.checkedAirscanUploadNonCal = response;
+        }E461D4064F265429
 NPT-93379-002
 .inner-card {
   margin-bottom: 2rem;
@@ -132,4 +139,5 @@ NPT-93379-002
     flex: 1 1 100%;   
   }
 }
+
 
