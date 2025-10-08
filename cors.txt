@@ -1,3 +1,62 @@
+// Add state variable
+const [isRegisteringRecalibration, setIsRegisteringRecalibration] = useState(false);
+
+// Update onRegisterClick handler
+const onRegisterClick = async () => {
+  let filteredParsedList: UploadedAirscan[] = [];
+  if (activeTab === DEVICEREG_TABS.RECALIBRATION) {
+    setIsRegisteringRecalibration(true); // Start registration
+    const parsedListToUploadJson: UploadedAirscan[] =
+      lastListToUploadReCal ?? [];
+    const successfulDevicesMap = new Map(
+      Object.values(checkedAirscanUpload?.devices || [])
+        .filter((d) => d.recalibrationStatus?.toLowerCase() === "success")
+        .map((d) => [d.name, d]),
+    );
+    filteredParsedList = parsedListToUploadJson.filter((item) =>
+      successfulDevicesMap.has(item.deviceId),
+    );
+  } else {
+    filteredParsedList = lastListToUploadNonCal ?? [];
+  }
+
+  setModalState({
+    open: true,
+    message:
+      "Register the test WellStat Air devices? This will allow them to be assigned to existing buildings.",
+    onConfirm: async () => {
+      await dispatch(
+        orphanUploadedAirscans({ uploadedAirscans: filteredParsedList }),
+      );
+      await dispatch(
+        updateCalibrationTimestamp({
+          uuid,
+          timestamp: false,
+          listtoupload: "",
+        }),
+      );
+      setModalState((prev) => ({ ...prev, open: false }));
+      if (activeTab === DEVICEREG_TABS.RECALIBRATION) {
+        setIsRegisteringRecalibration(false); // End registration
+      }
+    },
+    hideFooter: false,
+  });
+};
+
+// Update button disabled logic
+<Button
+  color="primary"
+  onClick={onRegisterClick}
+  disabled={
+    activeTab === DEVICEREG_TABS.RECALIBRATION
+      ? registerAfterRecalibrationDisabled || isRegisteringRecalibration
+      : registerBtnDisabled
+  }
+>
+  Register Device(s)
+</Button>
+
 if (activeTab === "recalibration") {
           state.checkedAirscanUploadReCal = {
             ...state.checkedAirscanUploadReCal,
@@ -139,5 +198,6 @@ NPT-93379-002
     flex: 1 1 100%;   
   }
 }
+
 
 
