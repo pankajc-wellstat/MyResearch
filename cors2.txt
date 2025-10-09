@@ -1,9 +1,8 @@
-
 import React from "react";
+import {Card, CardBody } from "reactstrap";
 import {
   ProcessList,
 } from "@mach-energy/common-backend/src/types";
-
 
 const AirscanProcessCard = ({
   process,
@@ -16,15 +15,14 @@ const AirscanProcessCard = ({
 }) => {
   // Determine status and color
   const isCompleted = process.timerWindow === "00:00:00";
-  const isInProgress = !isCompleted;
   const bottomBarClass = isCompleted ? "process-card-bottom-green" : "process-card-bottom-orange";
 
   return (
-    <div
+    <Card
       className="process-card-view cursor-pointer"
       onClick={() => onClick({ id: process.id })}
     >
-      <div className="process-card-content">
+      <CardBody className="process-card-content">
         <div className="process-card-title">
           <strong>Process: {process.id}</strong>
         </div>
@@ -35,22 +33,25 @@ const AirscanProcessCard = ({
           <strong>Time remaining :</strong>{" "}
           <span className={isCompleted ? "process-time-green" : "process-time-orange"}>{process.timerWindow}</span>
         </div>
-        <div className="process-card-link">
-          <a
-            href="#"
-            className="process-card-hyperlink"
-            onClick={e => { e.stopPropagation(); /* handle link click if needed */ }}
-          >
-            Show calibrated Value
-          </a>
-        </div>
-      </div>
+        {isCompleted && (
+          <div className="process-card-link">
+            <a
+              href="#"
+              className="process-card-hyperlink"
+              onClick={e => { e.stopPropagation(); /* handle link click if needed */ }}
+            >
+              Show calibrated Value
+            </a>
+          </div>
+        )}
+      </CardBody>
       <div className={`process-card-bottom-bar ${bottomBarClass}`} />
-    </div>
+    </Card>
   );
 };
 
 export default AirscanProcessCard;
+
 
 @import "../assets/scss/variables/_variables.scss";
 .airscan-cardbody-fixed-height {
@@ -258,9 +259,8 @@ export default AirscanProcessCard;
 // Device cards grid: always 4 columns, consistent width, with spacing from filter
 .mini-cards-container {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  grid-template-columns: repeat(6, minmax(220px, 1fr));
   gap: 8px;
-  margin-top: 24px;
 }
 
 .device-status-online {
@@ -278,7 +278,9 @@ export default AirscanProcessCard;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-width: 220px;
+  width: 320px;
+  min-width: 280px;
+  max-width: 280px;
   min-height: 140px;
   margin: 8px 0;
   position: relative;
@@ -293,23 +295,8 @@ export default AirscanProcessCard;
   gap: 6px;
 }
 
-.process-card-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.process-card-detail {
-  font-size: 1rem;
-  color: #22292f;
-}
-
-.process-card-link {
-  margin-top: 8px;
-}
-
 .process-card-hyperlink {
-  color: #1976d2;
+  color: $darker-blue;
   text-decoration: underline;
   cursor: pointer;
   font-weight: 500;
@@ -326,17 +313,16 @@ export default AirscanProcessCard;
   bottom: 0;
 }
 .process-card-bottom-green {
-  background: #1bc47d;
+  background: $dark-green;
 }
 .process-card-bottom-orange {
-  background: #ff9800;
+  background: $dark-amber;
 }
 .process-time-green {
-  color: #1bc47d;
+  color: $dark-green;
   font-weight: 600;
 }
 .process-time-orange {
-  color: #ff9800;
+  color: $dark-amber;
   font-weight: 600;
 }
-
