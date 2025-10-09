@@ -31,9 +31,24 @@ const AirscanProcessCard = ({
             <strong>Device Count:</strong> {deviceCount}
           </div>
         </div>
-        <div className="process-card-detail">
+                <div className="process-card-detail">
           <strong>Time remaining :</strong>{" "}
-          <span className={isCompleted ? "process-time-green" : "process-time-orange"}>{process.timerWindow}</span>
+          <span className="process-timer-boxes">
+            {(() => {
+              // Split timerWindow into [hh, mm, ss]
+              const [hh = "00", mm = "00", ss = "00"] = (process.timerWindow || "00:00:00").split(":");
+              const timerClass = isCompleted ? "process-time-green" : "process-time-orange";
+              return (
+                <>
+                  <span className="process-timer-box"><span className={timerClass}>{hh}</span></span>
+                  <span className="process-timer-sep">:</span>
+                  <span className="process-timer-box"><span className={timerClass}>{mm}</span></span>
+                  <span className="process-timer-sep">:</span>
+                  <span className="process-timer-box"><span className={timerClass}>{ss}</span></span>
+                </>
+              );
+            })()}
+          </span>
         </div>
         {isCompleted && (
           <div className="process-card-link">
@@ -339,5 +354,29 @@ export default AirscanProcessCard;
 }
 .process-card-devicecount {
   text-align: right;
+}
+
+.process-timer-boxes {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+.process-timer-box {
+  background: #f3f4f6;
+  border-radius: 4px;
+  padding: 0.2em 0.7em;
+  min-width: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 2px;
+}
+.process-timer-sep {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #b0b0b0;
+  margin: 0 2px;
 }
 
