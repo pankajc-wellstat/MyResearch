@@ -23,11 +23,13 @@ const AirscanProcessCard = ({
       onClick={() => onClick({ id: process.id })}
     >
       <CardBody className="process-card-content">
-        <div className="process-card-title">
-          <strong>Process: {process.id}</strong>
-        </div>
-        <div className="process-card-detail">
-          <strong>Device Count:</strong> {deviceCount}
+        <div className="process-card-row-between">
+          <div className="process-card-title">
+            <strong>Process: {process.id}</strong>
+          </div>
+          <div className="process-card-detail process-card-devicecount">
+            <strong>Device Count:</strong> {deviceCount}
+          </div>
         </div>
         <div className="process-card-detail">
           <strong>Time remaining :</strong>{" "}
@@ -326,3 +328,16 @@ export default AirscanProcessCard;
   color: $dark-amber;
   font-weight: 600;
 }
+
+.process-card-row-between {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 2px;
+}
+.process-card-devicecount {
+  text-align: right;
+}
+
