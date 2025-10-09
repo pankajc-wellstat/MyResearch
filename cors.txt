@@ -1,3 +1,11 @@
+CREATE TABLE airscan_recalibration_process (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cm_id CHAR(36) NOT NULL,
+    recal_timer_window TIMESTAMP NULL DEFAULT NULL,
+    listtoupload TEXT NOT NULL,
+    is_completed BOOLEAN DEFAULT 0,
+    date_created DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 // Add state variable
 const [isRegisteringRecalibration, setIsRegisteringRecalibration] = useState(false);
 
@@ -198,6 +206,7 @@ NPT-93379-002
     flex: 1 1 100%;   
   }
 }
+
 
 
 
