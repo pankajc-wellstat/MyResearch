@@ -1,57 +1,342 @@
-export async function authToServer(data) {
 
-  for (let i = 0; i < REGIONS.length; i++) {
-    const region = REGIONS[i];
-    const backendUrl = `https://backend-${region}.wellstat.io`;
+import React from "react";
+import {
+  ProcessList,
+} from "@mach-energy/common-backend/src/types";
 
-    const cfg = {
-      method: "post",
-      url: `${backendUrl}/auth`,
-      data,
-      timeout: 3000,
-      headers: { "Content-type": "application/json" },
-    };
 
-    try {
-      console.log(`Calling /auth in region: ${region}`);
-      const response = await axios(cfg);
-      const responseData = response.data;
+const AirscanProcessCard = ({
+  process,
+  deviceCount,
+  onClick,
+}: {
+  process: ProcessList;
+  deviceCount: number;
+  onClick: ({ id }: { id: number }) => void;
+}) => {
+  // Determine status and color
+  const isCompleted = process.timerWindow === "00:00:00";
+  const isInProgress = !isCompleted;
+  const bottomBarClass = isCompleted ? "process-card-bottom-green" : "process-card-bottom-orange";
 
-      if (responseData?.rc === "INVALID") {
-        return { status: response?.statusText, data: responseData };
-      }
+  return (
+    <div
+      className="process-card-view cursor-pointer"
+      onClick={() => onClick({ id: process.id })}
+    >
+      <div className="process-card-content">
+        <div className="process-card-title">
+          <strong>Process: {process.id}</strong>
+        </div>
+        <div className="process-card-detail">
+          <strong>Device Count:</strong> {deviceCount}
+        </div>
+        <div className="process-card-detail">
+          <strong>Time remaining :</strong>{" "}
+          <span className={isCompleted ? "process-time-green" : "process-time-orange"}>{process.timerWindow}</span>
+        </div>
+        <div className="process-card-link">
+          <a
+            href="#"
+            className="process-card-hyperlink"
+            onClick={e => { e.stopPropagation(); /* handle link click if needed */ }}
+          >
+            Show calibrated Value
+          </a>
+        </div>
+      </div>
+      <div className={`process-card-bottom-bar ${bottomBarClass}`} />
+    </div>
+  );
+};
 
-      if (responseData?.rc === "OK") {
-        return { status: response?.statusText, data: responseData };
-      }
+export default AirscanProcessCard;
 
-      console.log(`Unexpected rc from ${region}:`, responseData?.rc);
-    } catch (error) {
-      console.log(`auth call to ${region} failed:`, error.message);
+@import "../assets/scss/variables/_variables.scss";
+.airscan-cardbody-fixed-height {
+  min-height: 700px;
+  max-height: 900px;
+  overflow-y: auto;
+}
 
-      // ✅ Handle timeout, network error, or ECONNABORTED
-      if (
-        error.code === "ECONNABORTED" ||
-        error.message.includes("timeout") ||
-        error.message.includes("Network Error")
-      ) {
-        // Move to next region
-        continue;
-      }
-
-      // If error is not recoverable, you can optionally break or return here
+.clear-icon-btn {
+  &:hover {
+    background: $light-gray;
+    color: $dark-blue;
+    svg {
+      stroke: $dark-blue;
     }
   }
-
-  // If all regions fail, return fallback error
-  return {
-    status: "Network Error",
-    data: {
-      rc: "ERROR",
-      context: {
-        userMessages: ["Platform unavailable"],
-        sysMessages: [],
-      },
-    },
-  };
 }
+
+.upload-icon-btn {
+  &:hover {
+    background: $light-gray;
+    svg {
+      stroke: $dark-blue;
+    }
+  }
+}
+
+.airscan-tabs-container {
+  display: flex;
+  margin-bottom: 1rem;
+  border: none;
+}
+
+.airscan-tab {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  margin-bottom: -1px;
+  position: relative;
+  border:1px solid $light-gray;
+  font-size: 1.1rem;
+
+  &.inactive {
+    background-color: transparent;
+    color: $darker-gray;
+    border-bottom: 1px solid $light-gray;
+    z-index: 1;
+  }
+  &.active {
+    background-color: $dark-blue;
+    border: 1px solid $light-gray;
+    border-bottom: 1px solid $dark-blue;
+    color: $base-white;
+    z-index: 10;
+  }
+  &.disabled-tab {
+    pointer-events: none;
+    background: $light-gray;
+    opacity: 1;
+    cursor: not-allowed;
+  }
+}
+
+.airscan-tab-content {
+  background-color: $base-white;
+  padding: 1rem;
+}
+
+.or-separator {
+  display: flex;
+  height: 70px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: linear-gradient($lighter-gray, $lighter-gray) no-repeat center/2px 100%;
+  
+  .or-text {
+  background: $base-white;
+  color: $base-black;
+  }
+}
+
+.sku-message-card {
+  background-color: $dark-blue !important;
+  color: $base-white !important;
+  text-align: center;
+  border-radius: 8px !important;
+  font-size: 1.1rem !important
+}
+
+.download-button {
+  padding: 0.8em;
+}
+
+.description-text {
+  color: $dark-gray;
+}
+
+.refresh-text {
+  color: $dark-gray;
+}
+
+.timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.timer-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 280px;
+  margin-bottom: 0.5rem;
+  
+  .timer-label {
+    font-size: 0.9rem;
+  color: $darker-gray;
+    font-weight: 500;
+    text-align: center;
+    width: 80px;
+  }
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.timer-box {
+  background-color: $light-gray;
+  border-radius: 4px;
+  padding: 0.8rem 1rem;
+  min-width: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 1px 3px $light-black;
+}
+
+.timer-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: $base-gray;
+  font-family: 'Courier New', monospace;
+}
+
+.timer-separator {
+  font-size: 2rem;
+  font-weight: bold;
+  color: $base-gray;
+  margin: 0 4px;
+}
+
+.timer-remaining-text {
+  font-size: 1rem;
+  color: $darker-gray;
+  font-weight: 500;
+  text-align: center;
+}
+
+.inner-card {
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 24px 0 rgba(34, 41, 47, 0.1);
+  border-radius: 25px;
+  transition:
+    all 0.3s ease-in-out,
+    background 0s,
+    color 0s,
+    border-color 0s;
+}
+
+.inner-card .card-body {
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.custom-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.left-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: 0;
+}
+
+.device-button-group .btn {
+  font-size: 18px;
+}
+
+
+// Device cards grid: always 4 columns, consistent width, with spacing from filter
+.mini-cards-container {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.device-status-online {
+  color: $dark-green !important;
+}
+.device-status-offline {
+  color: $dark-red !important;
+}
+
+.process-card-view {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px 0 rgba(34, 41, 47, 0.08);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 220px;
+  min-height: 140px;
+  margin: 8px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.process-card-content {
+  padding: 18px 18px 10px 18px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.process-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.process-card-detail {
+  font-size: 1rem;
+  color: #22292f;
+}
+
+.process-card-link {
+  margin-top: 8px;
+}
+
+.process-card-hyperlink {
+  color: #1976d2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.process-card-bottom-bar {
+  height: 6px;
+  width: 100%;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+.process-card-bottom-green {
+  background: #1bc47d;
+}
+.process-card-bottom-orange {
+  background: #ff9800;
+}
+.process-time-green {
+  color: #1bc47d;
+  font-weight: 600;
+}
+.process-time-orange {
+  color: #ff9800;
+  font-weight: 600;
+}
+
